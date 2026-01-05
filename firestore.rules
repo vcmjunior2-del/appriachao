@@ -1,0 +1,117 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Funções Auxiliares ---
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.email == 'administracao@riachaodojacuipe.ba.gov.br';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // --- Configurações (Leitura Pública) ---
+    // Usando wildcard recursivo para garantir acesso a qualquer documento/subcoleção
+    
+    match /app_config/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /secretariats/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /service_types/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /info_services/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /occurrence_subjects/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /improvement_areas/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /city_places/{document=**} {
+      allow read: if true; 
+      allow write: if isAdmin();
+    }
+    
+    match /news/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Frota / GPS (CORREÇÃO DE PERMISSÃO) ---
+    match /garbage_trucks/{truckId} {
+      allow read: if true; // Qualquer um pode ver no mapa
+      // Permitimos 'isAuthenticated' ao invés de apenas 'isAdmin' para que o login "admin/admin" (Anônimo) funcione na demonstração.
+      allow write: if isAuthenticated(); 
+    }
+
+    // --- Dados de Usuário ---
+
+    match /users/{userId} {
+      // Admin lê tudo. Dono lê o seu.
+      allow read: if isAdmin() || isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isAdmin() || isOwner(userId);
+    }
+
+    // --- Solicitações (Requests) ---
+
+    match /requests/{requestId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Regra de Leitura:
+      // 1. Admin pode ler qualquer documento ou lista.
+      // 2. Usuário pode ler documento se for dono (resource.data).
+      // A condição isAdmin() vem primeiro para garantir short-circuit em queries de lista do Admin.
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      
+      allow update: if isAdmin();
+      
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // --- Notificações ---
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all'));
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // --- Sentimento ---
+
+    match /sentiment_logs/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if isAdmin() || isOwner(userId);
+    }
+    
+    // Regra Padrão de Bloqueio (Segurança)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

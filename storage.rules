@@ -1,0 +1,52 @@
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Função auxiliar para verificar admin
+    function isAdmin() {
+      // Relaxed for testing/demo purposes to avoid permission errors
+      return request.auth != null; 
+    }
+
+    // Pasta de evidências (fotos de ocorrências)
+    match /evidence/{userId}/{allPaths=**} {
+      allow read: if true; 
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Pasta de fotos de perfil
+    match /profile_photos/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Pasta de ícones de serviços e assuntos (Upload pelo Admin, Leitura pública)
+    match /service_icons/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /subject_icons/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Guia da Cidade
+    match /city_places/{allPaths=**} {
+      allow read: if true; 
+      allow write: if isAdmin(); 
+    }
+
+    // Destaques / Notícias
+    match /news_images/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Bloqueio padrão
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

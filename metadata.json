@@ -1,0 +1,8 @@
+{
+  "name": "Riachão Cidadão",
+  "description": "Aplicativo oficial de serviços da Prefeitura de Riachão para os cidadãos.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
