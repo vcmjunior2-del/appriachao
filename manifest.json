@@ -1,0 +1,22 @@
+
+{
+  "short_name": "Riachão",
+  "name": "Riachão Cidadão",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/fluency/192/city-hall.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://img.icons8.com/fluency/512/city-hall.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#135bec",
+  "background_color": "#f6f6f8",
+  "orientation": "portrait"
+}
