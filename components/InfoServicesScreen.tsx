@@ -9,8 +9,6 @@ interface InfoServicesScreenProps {
   onNavigateToTracker?: () => void; // Prop para navegação
 }
 
-// Alterando a assinatura para aceitar a prop opcional (que será passada pelo App.tsx se necessário, mas aqui vamos usar um hack simples de navegação global ou pedir para passar no App)
-// Para simplificar e manter compatibilidade, vamos injetar a navegação via App.tsx logic
 const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTracker: () => void }> = ({ onBack, onNavigateToTracker }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [services, setServices] = useState<InfoServiceDefinition[]>([]);
@@ -18,7 +16,7 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
 
   // --- In-App Navigation State ---
   const [activeService, setActiveService] = useState<InfoServiceDefinition | null>(null);
-  const [isGovSite, setIsGovSite] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
 
   // --- Helper: Color Mapping with Gradients ---
   const getColorClasses = (theme: string) => {
@@ -76,6 +74,13 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
       return () => unsubscribe();
   }, []);
 
+  // Reset iframe loading when opening a new service
+  useEffect(() => {
+      if (activeService) {
+          setIframeLoading(true);
+      }
+  }, [activeService]);
+
   const filteredServices = services.filter(s => 
       s.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
       s.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -83,72 +88,75 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
 
   const handleServiceClick = (service: InfoServiceDefinition) => {
       if (service.actionType === 'LINK_WEB' && service.actionConfig) {
-          const url = service.actionConfig.trim();
-          const isGov = url.includes('.gov.br') || url.includes('riachaodojacuipe');
-          
           setActiveService(service);
-          setIsGovSite(isGov);
-          
       } else {
           alert("Serviço em fase de integração.");
       }
   };
 
-  const handleOpenExternal = () => {
-      if (activeService?.actionConfig) {
-          let url = activeService.actionConfig;
-          if (!url.startsWith('http')) url = `https://${url}`;
-          window.open(url, '_blank');
-          setActiveService(null);
-      }
-  };
-
-  // --- RENDER: SECURE GATEWAY (In-App Transition) ---
+  // --- RENDER: INTERNAL BROWSER (IFRAME) ---
   if (activeService) {
-      const domain = activeService.actionConfig.replace('https://', '').replace('http://', '').split('/')[0];
+      let url = activeService.actionConfig.trim();
+      if (!url.startsWith('http')) url = `https://${url}`;
       
+      const domain = url.replace('https://', '').replace('http://', '').split('/')[0];
+
       return (
-          <div className="fixed inset-0 z-[100] flex flex-col bg-background-light dark:bg-background-dark animate-in slide-in-from-right duration-300">
-              <header className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-card-dark">
-                  <button onClick={() => setActiveService(null)} className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                      <span className="material-symbols-outlined text-slate-800 dark:text-white font-bold">close</span>
+          <div className="fixed inset-0 z-[100] flex flex-col bg-background-light dark:bg-background-dark animate-in slide-in-from-bottom duration-300">
+              {/* Browser Header */}
+              <header className="p-3 pb-2 flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-card-dark shadow-sm z-10">
+                  <button 
+                    onClick={() => setActiveService(null)} 
+                    className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-slate-800 dark:text-white"
+                  >
+                      <span className="material-symbols-outlined">close</span>
                   </button>
-                  <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest">Portal de Serviços</h2>
-                  <div className="size-10"></div>
+                  
+                  {/* URL Bar Simulation */}
+                  <div className="flex-1 flex flex-col justify-center bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-1.5 border border-transparent focus-within:border-primary/50 transition-colors">
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[12px] text-green-600 dark:text-green-400">lock</span>
+                        <h2 className="text-xs font-bold text-slate-900 dark:text-white truncate">{activeService.title}</h2>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate font-mono">{domain}</p>
+                  </div>
+
+                  <button 
+                    onClick={() => window.open(url, '_blank')} 
+                    className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-primary"
+                    title="Abrir no Chrome/Safari"
+                  >
+                      <span className="material-symbols-outlined text-[20px]">open_in_new</span>
+                  </button>
               </header>
 
-              <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                  <div className="w-24 h-24 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary mb-6 animate-bounce-gentle">
-                      <span className="material-symbols-outlined text-5xl">{activeService.icon}</span>
-                  </div>
-
-                  <h1 className="text-2xl font-black text-slate-900 dark:text-white mb-2 leading-tight">
-                      Acessar {activeService.title}
-                  </h1>
-                  
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed max-w-xs">
-                      Para sua segurança e total compatibilidade com emissão de boletos, o portal da prefeitura será aberto em uma conexão segura protegida.
-                  </p>
-
-                  <div className="w-full max-w-xs space-y-4">
-                      <button 
-                          onClick={handleOpenExternal}
-                          className="w-full bg-primary hover:bg-blue-600 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 active:scale-95 transition-all group"
-                      >
-                          <span>Abrir Portal Seguro</span>
-                          <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">open_in_new</span>
-                      </button>
-
-                      <div className="bg-slate-100 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-green-500 text-sm">lock</span>
-                          <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate flex-1">{domain}</span>
+              {/* Browser Body */}
+              <main className="flex-1 relative bg-white w-full h-full overflow-hidden">
+                  {iframeLoading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-slate-900 z-0">
+                          <span className="material-symbols-outlined animate-spin text-primary text-3xl mb-2">progress_activity</span>
+                          <p className="text-xs text-slate-500 font-medium">Carregando portal...</p>
                       </div>
-                  </div>
+                  )}
+                  
+                  <iframe 
+                      src={url}
+                      title={activeService.title}
+                      className="w-full h-full border-none relative z-10"
+                      onLoad={() => setIframeLoading(false)}
+                      sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                      // Permissões comuns para garantir funcionamento de sites governamentais
+                  />
+                  
+                  {/* Warning Overlay if taking too long or blocked */}
+                  {!iframeLoading && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-yellow-50 dark:bg-yellow-900/20 p-2 text-center border-t border-yellow-200 dark:border-yellow-900/50 z-20">
+                          <p className="text-[10px] text-yellow-700 dark:text-yellow-400">
+                              Se a página não carregar corretamente, use o ícone <span className="material-symbols-outlined text-[10px] align-middle">open_in_new</span> acima.
+                          </p>
+                      </div>
+                  )}
               </main>
-
-              <footer className="p-6 text-center">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Ambiente Oficial • Riachão Cidadão</p>
-              </footer>
           </div>
       );
   }
@@ -262,7 +270,7 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${colors.bg} ${colors.icon} shadow-inner`}>
                                             <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">{service.icon}</span>
                                         </div>
-                                        <span className="material-symbols-outlined text-gray-300 text-sm">arrow_outward</span>
+                                        <span className="material-symbols-outlined text-gray-300 text-sm">open_in_new</span>
                                     </div>
                                     
                                     <div className="flex-1">
