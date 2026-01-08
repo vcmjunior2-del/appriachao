@@ -34,6 +34,9 @@ const AppContent: React.FC = () => {
   const [activeSecretariat, setActiveSecretariat] = useState<Secretariat | null>(null);
   const [cityGuideCategory, setCityGuideCategory] = useState<string | undefined>(undefined);
   
+  // State for dynamic back navigation (User Profile vs Home)
+  const [returnScreen, setReturnScreen] = useState<Screen>(Screen.HOME);
+
   // State for the Splash Screen
   const [showSplash, setShowSplash] = useState(true);
   const isFirstLoad = useRef(true);
@@ -152,6 +155,15 @@ const AppContent: React.FC = () => {
   }
 
   const handleNavigate = (screen: Screen, params?: any) => {
+      // Logic: Determine where to go back to if accessing Requests or Alerts
+      if (screen === Screen.REQUESTS || screen === Screen.ALERTS) {
+          if (currentScreen === Screen.PROFILE) {
+              setReturnScreen(Screen.PROFILE);
+          } else {
+              setReturnScreen(Screen.HOME);
+          }
+      }
+
       if (screen === Screen.CITY_GUIDE && params) {
           setCityGuideCategory(params);
       }
@@ -210,24 +222,27 @@ const AppContent: React.FC = () => {
                />;
       case Screen.REQUESTS:
         return <RequestsScreen 
-                  onBack={() => setCurrentScreen(Screen.HOME)} 
+                  onBack={() => setCurrentScreen(returnScreen)} 
                   onSelectRequest={handleSelectRequest} 
                />;
       case Screen.REQUEST_TRACKING:
-        if (!selectedRequestId) return <RequestsScreen onBack={() => setCurrentScreen(Screen.HOME)} onSelectRequest={handleSelectRequest} />;
+        if (!selectedRequestId) return <RequestsScreen onBack={() => setCurrentScreen(returnScreen)} onSelectRequest={handleSelectRequest} />;
         return <RequestTrackingScreen 
                   requestId={selectedRequestId} 
                   onBack={() => setCurrentScreen(Screen.REQUESTS)} 
                />;
       case Screen.PROFILE:
-        return <ProfileScreen onLogout={() => setCurrentScreen(Screen.WELCOME)} />;
+        return <ProfileScreen 
+                  onLogout={() => setCurrentScreen(Screen.WELCOME)} 
+                  onNavigate={handleNavigate} 
+               />;
       case Screen.SERVICE_DETAILS:
         return <ServiceDetailsScreen 
                     onBack={() => setCurrentScreen(Screen.SERVICES)} 
                     service={selectedService}
                />;
       case Screen.ALERTS:
-        return <AlertsScreen onBack={() => setCurrentScreen(Screen.HOME)} />;
+        return <AlertsScreen onBack={() => setCurrentScreen(returnScreen)} />;
       case Screen.EMERGENCY:
         return <EmergencyScreen onBack={() => setCurrentScreen(Screen.HOME)} />;
         

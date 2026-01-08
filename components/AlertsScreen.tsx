@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationItem } from '../types';
@@ -19,14 +19,27 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
     useEffect(() => {
         if (!currentUser) return;
 
+        // Query simples sem orderBy para evitar erro de índice composto no Firestore
         const q = query(
             collection(db, "notifications"),
-            where("userId", "in", [currentUser.uid, "all"]),
-            orderBy("date", "desc")
+            where("userId", "in", [currentUser.uid, "all"])
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NotificationItem));
+            
+            // Ordenação feita no cliente (descendente por data)
+            data.sort((a, b) => {
+                const getTime = (dateObj: any) => {
+                    if (!dateObj) return 0;
+                    if (dateObj.toDate) return dateObj.toDate().getTime();
+                    if (dateObj.seconds) return dateObj.seconds * 1000;
+                    if (dateObj instanceof Date) return dateObj.getTime();
+                    return 0;
+                };
+                return getTime(b.date) - getTime(a.date);
+            });
+
             setNotifications(data);
             setLoading(false);
         }, (error) => {

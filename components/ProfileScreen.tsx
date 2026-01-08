@@ -4,13 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '../firebaseConfig';
-import { UserItem } from '../types';
+import { UserItem, Screen } from '../types';
 
 interface ProfileScreenProps {
   onLogout: () => void;
+  onNavigate: (screen: Screen) => void;
 }
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onNavigate }) => {
   const { currentUser } = useAuth();
   const [userData, setUserData] = useState<UserItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -224,6 +225,29 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout }) => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* QUICK SHORTCUTS */}
+      <div className="grid grid-cols-2 gap-3 px-4 mb-6">
+          <button
+            onClick={() => onNavigate(Screen.REQUESTS)}
+            className="flex flex-col items-center justify-center p-4 bg-white dark:bg-[#1a2230] rounded-2xl shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 active:scale-95 transition-all group"
+          >
+            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+               <span className="material-symbols-outlined">assignment</span>
+            </div>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Minhas Solicitações</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate(Screen.ALERTS)}
+            className="flex flex-col items-center justify-center p-4 bg-white dark:bg-[#1a2230] rounded-2xl shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 active:scale-95 transition-all group"
+          >
+             <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-500 dark:text-orange-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+               <span className="material-symbols-outlined">notifications</span>
+            </div>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Notificações</span>
+          </button>
       </div>
 
       {/* Section: Meus Dados */}
