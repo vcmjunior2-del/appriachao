@@ -122,9 +122,14 @@ export interface InfoServiceDefinition {
   description: string;
   icon: string;
   colorTheme: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'gray' | 'orange';
-  actionType: 'LINK_WEB' | 'INTERNAL_FORM' | 'POLL' | 'STATIC_PAGE';
+  // Atualizado para suportar TRACKER_BANNER e INTERNAL_ROUTE
+  actionType: 'LINK_WEB' | 'INTERNAL_FORM' | 'POLL' | 'STATIC_PAGE' | 'TRACKER_BANNER' | 'INTERNAL_ROUTE';
   actionConfig: string;
   active: boolean;
+  
+  // Hierarquia
+  isFolder?: boolean;
+  parentId?: string | null;
 }
 
 export interface AppConfig {

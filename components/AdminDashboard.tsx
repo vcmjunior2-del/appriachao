@@ -17,12 +17,15 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type AdminView = 'DASHBOARD' | 'USERS' | 'REQ_DASHBOARD' | 'REQ_LIST' | 'REQ_MAP' | 'REQ_KANBAN' | 'SECRETARIATS' | 'SUBJECTS_CONFIG' | 'SERVICES_CONFIG' | 'INFO_SERVICES_CONFIG' | 'NOTIFICATIONS' | 'CONFIG' | 'SENTIMENT' | 'CITY_GUIDE' | 'FLEET_MANAGER' | 'NEWS_MANAGER';
+type AdminView = 'DASHBOARD' | 'USERS' | 'REQ_DASHBOARD' | 'REQ_LIST' | 'REQ_MAP' | 'REQ_KANBAN' | 'SECRETARIATS' | 'SUBJECTS_CONFIG' | 'SERVICES_CONFIG' | 'INFO_OVERVIEW' | 'INFO_CATALOG' | 'INFO_NEW_FOLDER' | 'INFO_NEW_DOC' | 'NOTIFICATIONS' | 'CONFIG' | 'SENTIMENT' | 'CITY_GUIDE' | 'FLEET_MANAGER' | 'NEWS_MANAGER';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [currentView, setCurrentView] = useState<AdminView>('DASHBOARD');
-  const [isOccurrencesExpanded, setIsOccurrencesExpanded] = useState(true);
-  const [isTypesExpanded, setIsTypesExpanded] = useState(false); // Novo estado para expandir Tipos
+  
+  // Sidebar Expand States
+  const [isOccurrencesExpanded, setIsOccurrencesExpanded] = useState(false);
+  const [isTypesExpanded, setIsTypesExpanded] = useState(false);
+  const [isInfoServicesExpanded, setIsInfoServicesExpanded] = useState(true); // Default open for Portal
 
   // --- Sidebar Component ---
   const SidebarLink = ({ icon, label, view, badge, isSub = false }: { icon: string, label: string, view: AdminView, badge?: number, isSub?: boolean }) => (
@@ -90,6 +93,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <SidebarLink icon="mood" label="Sentimento Popular" view="SENTIMENT" />
             <SidebarLink icon="local_shipping" label="Gestão de Frota" view="FLEET_MANAGER" />
 
+            {/* Portal de Serviços Menu Expandable */}
+            <div>
+                <button 
+                    onClick={() => setIsInfoServicesExpanded(!isInfoServicesExpanded)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg w-full transition-colors group text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white justify-between`}
+                >
+                    <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined">design_services</span>
+                        <span className="font-medium text-left">Portal de Serviços</span>
+                    </div>
+                    <span className={`material-symbols-outlined text-sm transition-transform ${isInfoServicesExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                </button>
+                
+                {isInfoServicesExpanded && (
+                    <div className="mt-1 space-y-1 animate-in slide-in-from-top-2 fade-in duration-200">
+                        <SidebarLink icon="grid_view" label="Visão Geral" view="INFO_OVERVIEW" isSub />
+                        <SidebarLink icon="folder_managed" label="Catálogo Completo" view="INFO_CATALOG" isSub />
+                        <SidebarLink icon="create_new_folder" label="Nova Pasta (Grupo)" view="INFO_NEW_FOLDER" isSub />
+                        <SidebarLink icon="post_add" label="Novo Documento" view="INFO_NEW_DOC" isSub />
+                    </div>
+                )}
+            </div>
+
             <div className="my-2 border-t border-slate-100 dark:border-slate-800"></div>
             <p className="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Cadastros</p>
             <SidebarLink icon="map" label="Guia da Cidade" view="CITY_GUIDE" />
@@ -115,8 +141,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </div>
                 )}
             </div>
-
-            <SidebarLink icon="design_services" label="Portal de Serviços" view="INFO_SERVICES_CONFIG" />
             
             <div className="my-2 border-t border-slate-100 dark:border-slate-800"></div>
             <SidebarLink icon="newspaper" label="Destaques / Notícias" view="NEWS_MANAGER" />
@@ -172,7 +196,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
             {currentView === 'SERVICES_CONFIG' && <AdminServices />}
             
-            {currentView === 'INFO_SERVICES_CONFIG' && <AdminInfoServices />}
+            {(currentView === 'INFO_OVERVIEW' || currentView === 'INFO_CATALOG' || currentView === 'INFO_NEW_FOLDER' || currentView === 'INFO_NEW_DOC') && (
+                <AdminInfoServices viewMode={currentView} />
+            )}
             
             {currentView === 'CONFIG' && <AdminConfig />}
             
