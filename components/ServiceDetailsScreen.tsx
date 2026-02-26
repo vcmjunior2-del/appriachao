@@ -110,29 +110,34 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
   // --- Logic: Geocoding ---
   const fetchAddress = async (lat: number, lng: number) => {
     try {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-        const response = await fetch(url, { headers: { 'User-Agent': 'RiachaoCidadaoApp/1.0' } });
+        const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=pt`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
         const data = await response.json();
         
-        if (data && data.address) {
-            const road = data.address.road || data.address.pedestrian || data.address.street || '';
-            const number = data.address.house_number || '';
-            const neighborhood = data.address.suburb || data.address.neighbourhood || data.address.district || '';
+        if (data && data.locality) {
+            let formattedAddr = '';
+            if (data.principalSubdivision) {
+                formattedAddr = `${data.locality}, ${data.principalSubdivision}`;
+            } else {
+                formattedAddr = data.locality;
+            }
             
-            let formattedAddr = road;
-            if (number) formattedAddr += `, Nº ${number}`;
-            else formattedAddr += `, S/N`;
-            if (neighborhood) formattedAddr += ` - ${neighborhood}`;
+            if (data.city && data.city !== data.locality) {
+                formattedAddr += ` - ${data.city}`;
+            }
 
-            if (!road) formattedAddr = data.display_name ? data.display_name.split(',')[0] : 'Local marcado no mapa';
-            
-            setAddress(formattedAddr);
+            setAddress(formattedAddr || `Lat: ${lat.toFixed(5)}, Long: ${lng.toFixed(5)}`);
             if (errors.location) setErrors(prev => ({...prev, location: undefined})); // Clear error
         } else {
             setAddress(`Lat: ${lat.toFixed(5)}, Long: ${lng.toFixed(5)}`);
         }
     } catch (error) {
-        console.error("Geocoding error", error);
+        // Fail gracefully without console.error to prevent "Failed to fetch" noise
         setAddress(`Lat: ${lat.toFixed(5)}, Long: ${lng.toFixed(5)}`);
     }
   };
@@ -250,7 +255,6 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
     setErrors(newErrors);
 
     if (hasError) {
-        // Optional: Vibrate or simple alert to draw attention if user missed visual cues
         if (navigator.vibrate) navigator.vibrate(200);
         return;
     }
@@ -265,14 +269,12 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
         if (rawFiles.length > 0) {
             setUploadProgress(`Enviando ${rawFiles.length} foto(s)...`);
             
-            // Upload sequentially or parallel (Parallel is faster)
             const uploadPromises = rawFiles.map(async (file, index) => {
-                // Generate a safe, unique filename: evidence/USER_ID/TIMESTAMP_INDEX_FILENAME
                 const safeName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
                 const path = `evidence/${currentUser.uid}/${Date.now()}_${index}_${safeName}`;
                 const fileRef = ref(storage, path);
                 
-                // Add metadata for better management and rule validation
+                // Fix: Explicitly set metadata to avoid storage/unknown errors
                 const metadata = {
                     contentType: file.type,
                     customMetadata: {
@@ -308,7 +310,7 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
             iconColor: themeColors.text,
             statusColor: 'text-blue-700 dark:text-blue-300',
             statusBg: 'bg-blue-100 dark:bg-blue-900/30',
-            photos: uploadedPhotoUrls // Save the real Cloud URLs here
+            photos: uploadedPhotoUrls // Real Cloud URLs
         });
 
         console.log("Documento salvo com ID: ", docRef.id);
@@ -322,11 +324,9 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
         let msg = "Erro ao enviar solicitação.";
         
         if (error.code === 'storage/unauthorized') {
-            msg = "Permissão negada ao enviar fotos. Verifique as Regras de Segurança do Storage no Console do Firebase. (Requer autenticação)";
-        } else if (error.code === 'storage/canceled') {
-            msg = "Envio de foto cancelado.";
-        } else if (error.code === 'permission-denied') {
-            msg = "Erro de permissão no banco de dados. Verifique as regras do Firestore.";
+            msg = "Permissão negada ao enviar fotos. Verifique as Regras de Segurança.";
+        } else if (error.code === 'storage/unknown') {
+            msg = "Erro desconhecido no Storage. Tente reduzir o tamanho da foto ou verifique sua conexão.";
         }
 
         alert(msg);
@@ -357,7 +357,6 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
                 touchZoom: false
             }).setView([startLat, startLng], startZoom);
 
-            // CHANGED TO OPENSTREETMAP STANDARD
             window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
             }).addTo(map);
@@ -389,9 +388,15 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
             const startLng = coords ? coords.lng : DEFAULT_LNG;
             const startZoom = coords ? 18 : CITY_VIEW_ZOOM;
 
-            const map = window.L.map(modalMapContainerId, { zoomControl: false }).setView([startLat, startLng], startZoom);
+            const map = window.L.map(modalMapContainerId, { zoomControl: false });
+            
+            // Remove Leaflet Prefix
+            if (map.attributionControl) {
+              map.attributionControl.setPrefix(false);
+            }
 
-            // CHANGED TO OPENSTREETMAP STANDARD
+            map.setView([startLat, startLng], startZoom);
+
             window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap'
@@ -555,7 +560,6 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
                             </div>
                         </div>
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-0.5 ml-1">Clique no alvo para usar o GPS ou no mapa para ajustar o pino manualmente.</p>
                 </div>
             )}
 

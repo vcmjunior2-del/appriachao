@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAlert } from '../contexts/AlertContext';
 
 interface EmergencyScreenProps {
   onBack: () => void;
@@ -7,6 +8,7 @@ interface EmergencyScreenProps {
 const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
   const [isPressing, setIsPressing] = useState(false);
   const [currentAddress, setCurrentAddress] = useState('Obtendo localização...');
+  const { showAlert } = useAlert();
   
   // Logic: Fetch GPS and Address on Mount
   useEffect(() => {
@@ -23,23 +25,28 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
                 const { latitude, longitude } = position.coords;
                 
                 try {
-                    // Reverse Geocoding using OpenStreetMap (Nominatim)
-                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`, {
-                        headers: { 'User-Agent': 'RiachaoCidadaoApp/1.0' }
-                    });
+                    // Reverse Geocoding using BigDataCloud
+                    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=pt`);
                     
                     if (!mounted) return;
 
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+
                     const data = await response.json();
                     
-                    if (data && data.address) {
-                        const road = data.address.road || data.address.pedestrian || data.address.street || '';
-                        const suburb = data.address.suburb || data.address.neighbourhood || data.address.district || '';
-                        const city = data.address.city || data.address.town || data.address.village || '';
+                    if (data && data.locality) {
+                        let formatted = '';
+                        if (data.principalSubdivision) {
+                            formatted = `${data.locality}, ${data.principalSubdivision}`;
+                        } else {
+                            formatted = data.locality;
+                        }
                         
-                        let formatted = road;
-                        if (suburb) formatted += `, ${suburb}`;
-                        else if (city) formatted += `, ${city}`;
+                        if (data.city && data.city !== data.locality) {
+                            formatted += ` - ${data.city}`;
+                        }
                         
                         // Fallback if specific fields are empty
                         if (!formatted) formatted = 'Localização Identificada';
@@ -49,7 +56,7 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
                         setCurrentAddress(`Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}`);
                     }
                 } catch (error) {
-                    console.error("Geocoding error", error);
+                    // Fail gracefully without console.error to prevent "Failed to fetch" noise
                     if (mounted) setCurrentAddress(`Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}`);
                 }
             },
@@ -71,12 +78,16 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
     let timer: ReturnType<typeof setTimeout>;
     if (isPressing) {
         timer = setTimeout(() => {
-            alert(`Sinal de SOS enviado! Localização: ${currentAddress}`);
+            showAlert({
+                title: 'SOS Enviado',
+                message: `Sinal de SOS enviado! Localização: ${currentAddress}`,
+                type: 'success'
+            });
             setIsPressing(false);
         }, 3000);
     }
     return () => clearTimeout(timer);
-  }, [isPressing, currentAddress]);
+  }, [isPressing, currentAddress, showAlert]);
 
   return (
     <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden bg-background-light dark:bg-background-dark font-display">

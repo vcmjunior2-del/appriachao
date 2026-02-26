@@ -43,9 +43,16 @@ const AdminRequestsMap: React.FC<AdminRequestsMapProps> = ({ requests, ghostRequ
         if (!window.L) return;
 
         if (!mapRef.current) {
-            const map = window.L.map('general-map-container', { zoomControl: false }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+            const map = window.L.map('general-map-container', { zoomControl: false });
             
-            // CHANGED TO OPENSTREETMAP STANDARD
+            // Remove Leaflet Prefix
+            if (map.attributionControl) {
+              map.attributionControl.setPrefix(false);
+            }
+
+            map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+            
+            // Tile Layer
             window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap'

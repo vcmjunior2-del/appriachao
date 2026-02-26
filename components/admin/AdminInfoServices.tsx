@@ -18,6 +18,10 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
     
     const [infoServicesList, setInfoServicesList] = useState<InfoServiceDefinition[]>([]);
     
+    // --- Folder Navigation State ---
+    const [currentParentId, setCurrentParentId] = useState<string | null>(null);
+    const [folderHistory, setFolderHistory] = useState<InfoServiceDefinition[]>([]);
+    
     // Form & Upload State
     const defaultService: InfoServiceDefinition = {
         title: '', description: '', icon: 'article', colorTheme: 'blue', 
@@ -32,6 +36,10 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
     const [iconFile, setIconFile] = useState<File | null>(null);
     const [iconPreview, setIconPreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Delete Modal State
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Mock Stats State
     const [stats, setStats] = useState({
@@ -49,6 +57,9 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
             handleNew(false);
         } else if (viewMode === 'INFO_CATALOG') {
             setInternalView('LIST');
+            // Reset navigation when entering catalog from menu, optional
+            // setCurrentParentId(null); 
+            // setFolderHistory([]);
         } else {
             setInternalView('OVERVIEW');
         }
@@ -71,6 +82,36 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
         }, (error) => console.log("AdminInfoServices restricted"));
         return () => unsub();
     }, [currentUser]);
+
+    // --- Navigation Logic ---
+    const handleEnterFolder = (folder: InfoServiceDefinition) => {
+        setFolderHistory([...folderHistory, folder]);
+        setCurrentParentId(folder.id!);
+    };
+
+    const handleNavigateBack = () => {
+        const newHistory = [...folderHistory];
+        newHistory.pop(); // Remove current folder
+        setFolderHistory(newHistory);
+        
+        const parentFolder = newHistory.length > 0 ? newHistory[newHistory.length - 1] : null;
+        setCurrentParentId(parentFolder ? parentFolder.id! : null);
+    };
+
+    const getCurrentFolderName = () => {
+        if (currentParentId && folderHistory.length > 0) {
+            return folderHistory[folderHistory.length - 1].title;
+        }
+        return 'Raiz';
+    };
+
+    // --- Filtering Logic ---
+    const displayedServices = infoServicesList.filter(s => {
+        // If root, show items with no parentId OR parentId is null/empty string
+        if (!currentParentId) return !s.parentId;
+        // If folder selected, show children
+        return s.parentId === currentParentId;
+    });
 
     // --- Actions ---
 
@@ -110,6 +151,7 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
             else { const { id, ...data } = payload; await addDoc(collection(db, "info_services"), data); }
             
             setInternalView('LIST');
+            // Stay in the current folder after save if possible, or reset form
             setFormData(defaultService);
             setIconFile(null);
             setIconPreview(null);
@@ -123,7 +165,7 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
     const handleEdit = (service: InfoServiceDefinition) => { 
         setFormData(service); 
         setIconFile(null);
-        if (service.icon.startsWith('http')) {
+        if (service.icon && service.icon.startsWith('http')) {
             setIconPreview(service.icon);
         } else {
             setIconPreview(null);
@@ -131,20 +173,47 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
         setInternalView('FORM'); 
     };
     
-    const handleDelete = async (id: string) => { if(confirm('Excluir este item?')) await deleteDoc(doc(db, "info_services", id)); };
+    // --- Delete Logic ---
+    const handleDeleteClick = (id: string) => {
+        if (!id) return;
+        
+        // Check if folder has children before deleting
+        const children = infoServicesList.filter(s => s.parentId === id);
+        if (children.length > 0) {
+            alert(`Não é possível excluir esta pasta pois ela contém ${children.length} itens. Exclua ou mova os itens primeiro.`);
+            return;
+        }
+
+        setDeleteId(id);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteId) return;
+        setIsDeleting(true);
+        try {
+            await deleteDoc(doc(db, "info_services", deleteId));
+            setDeleteId(null);
+        } catch (error) {
+            console.error("Erro ao excluir:", error);
+            alert("Erro ao excluir do banco de dados.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
     
     const handleNew = (isFolder: boolean) => { 
         setFormData({
             ...defaultService,
             isFolder: isFolder,
-            icon: isFolder ? 'folder' : 'article'
+            icon: isFolder ? 'folder' : 'article',
+            parentId: currentParentId // Auto-set parent if inside a folder
         }); 
         setIconFile(null);
         setIconPreview(null);
         setInternalView('FORM'); 
     };
 
-    const isUrl = (str: string) => str.includes('http') || str.includes('data:');
+    const isUrl = (str: string) => str && (str.includes('http') || str.includes('data:'));
 
     // --- Helper: Preview Colors (Updated with 'none') ---
     const getColorPreview = (theme: string) => {
@@ -167,7 +236,7 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
         : (formData.isFolder ? 'Nova Pasta' : 'Novo Documento');
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-12">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-12 relative">
             
             {/* Header & Title */}
             <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
@@ -229,47 +298,118 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
 
             {/* --- VIEW: LIST (CATALOG) --- */}
             {internalView === 'LIST' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-500">
-                    {infoServicesList.map((service) => {
-                        const colors = getColorPreview(service.colorTheme);
-                        const isTracker = service.actionType === 'TRACKER_BANNER';
-                        const parentName = infoServicesList.find(p => p.id === service.parentId)?.title;
-                        const iconIsImg = isUrl(service.icon);
+                <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+                    
+                    {/* Breadcrumbs Navigation */}
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-[#1e293b] p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                        {currentParentId ? (
+                            <button 
+                                onClick={handleNavigateBack}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                            >
+                                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                                Voltar
+                            </button>
+                        ) : (
+                            <div className="px-3 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <span className="material-symbols-outlined text-sm">home</span>
+                                Raiz
+                            </div>
+                        )}
+                        <div className="h-4 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                        <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            {currentParentId && <span className="material-symbols-outlined text-amber-500 text-lg">folder_open</span>}
+                            {getCurrentFolderName()}
+                        </span>
+                        
+                        {/* Context Action: Create inside current folder */}
+                        <div className="ml-auto flex gap-2">
+                            <button 
+                                onClick={() => handleNew(true)} 
+                                className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-white/50 transition-colors"
+                                title="Criar Pasta aqui"
+                            >
+                                <span className="material-symbols-outlined text-sm text-amber-500">create_new_folder</span>
+                                <span className="hidden md:inline">Nova Pasta</span>
+                            </button>
+                            <button 
+                                onClick={() => handleNew(false)} 
+                                className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-white/50 transition-colors"
+                                title="Criar Documento aqui"
+                            >
+                                <span className="material-symbols-outlined text-sm text-blue-500">note_add</span>
+                                <span className="hidden md:inline">Novo Doc</span>
+                            </button>
+                        </div>
+                    </div>
 
-                        return (
-                            <div key={service.id} className={`group bg-white dark:bg-[#1e293b] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col ${isTracker ? 'border-l-4 border-l-emerald-500' : ''}`}>
-                                {!service.active && <div className="absolute top-0 right-0 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-bl-lg z-10">INATIVO</div>}
-                                
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${colors.bg} dark:bg-slate-800 ${colors.icon} overflow-hidden border ${colors.border} dark:border-slate-700`}>
-                                            {iconIsImg ? (
-                                                <img src={service.icon} className="w-full h-full object-contain p-2" />
-                                            ) : (
-                                                <span className="material-symbols-outlined text-3xl">{service.icon}</span>
-                                            )}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h3 className="font-bold text-slate-900 dark:text-white leading-tight truncate pr-2">{service.title}</h3>
-                                            <div className="flex flex-wrap gap-1 mt-1">
-                                                {service.isFolder && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">PASTA</span>}
-                                                {parentName && <span className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">folder_open</span> {parentName}</span>}
-                                                {isTracker && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">BANNER</span>}
+                    {/* Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {displayedServices.map((service) => {
+                            const colors = getColorPreview(service.colorTheme);
+                            const isTracker = service.actionType === 'TRACKER_BANNER';
+                            const iconIsImg = isUrl(service.icon);
+
+                            return (
+                                <div key={service.id} className={`group bg-white dark:bg-[#1e293b] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col ${isTracker ? 'border-l-4 border-l-emerald-500' : ''}`}>
+                                    {!service.active && <div className="absolute top-0 right-0 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-bl-lg z-10">INATIVO</div>}
+                                    
+                                    {/* Main Click Area: Enters folder if folder, otherwise does nothing (edit button handles edits) */}
+                                    <div 
+                                        className={`flex-1 ${service.isFolder ? 'cursor-pointer' : ''}`}
+                                        onClick={() => service.isFolder && handleEnterFolder(service)}
+                                    >
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${colors.bg} dark:bg-slate-800 ${colors.icon} overflow-hidden border ${colors.border} dark:border-slate-700`}>
+                                                    {iconIsImg ? (
+                                                        <img src={service.icon} className="w-full h-full object-contain p-2" />
+                                                    ) : (
+                                                        <span className="material-symbols-outlined text-3xl">{service.icon}</span>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="font-bold text-slate-900 dark:text-white leading-tight truncate pr-2 group-hover:text-primary transition-colors">{service.title}</h3>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {service.isFolder && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">folder</span> PASTA</span>}
+                                                        {isTracker && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">BANNER</span>}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
+                                        
+                                        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 min-h-[2.5rem] mb-4 leading-relaxed">{service.description}</p>
+                                    </div>
+                                    
+                                    <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto">
+                                        {service.isFolder && (
+                                            <button onClick={() => handleEnterFolder(service)} className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold text-white bg-slate-800 hover:bg-black transition-colors shadow-sm">
+                                                <span className="material-symbols-outlined text-base">open_in_new</span> Abrir
+                                            </button>
+                                        )}
+                                        <button onClick={() => handleEdit(service)} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${service.isFolder ? 'px-4 bg-slate-100 dark:bg-slate-800' : 'flex-1 bg-slate-100 dark:bg-slate-800'}`}>
+                                            <span className="material-symbols-outlined text-base">edit</span> {service.isFolder ? '' : 'Editar'}
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteClick(service.id!)} 
+                                            className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
+                                            title="Excluir"
+                                        >
+                                            <span className="material-symbols-outlined text-base">delete</span>
+                                            <span className="hidden sm:inline">Excluir</span>
+                                        </button>
                                     </div>
                                 </div>
-                                
-                                <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 min-h-[2.5rem] mb-4 leading-relaxed">{service.description}</p>
-                                
-                                <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto">
-                                    <button onClick={() => handleEdit(service)} className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><span className="material-symbols-outlined text-lg">edit</span> Editar</button>
-                                    <button onClick={() => handleDelete(service.id!)} className="px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><span className="material-symbols-outlined text-lg">delete</span></button>
-                                </div>
+                            );
+                        })}
+                        {displayedServices.length === 0 && (
+                            <div className="col-span-3 text-center py-20 text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">folder_open</span>
+                                <p>Esta pasta está vazia.</p>
+                                <button onClick={() => handleNew(false)} className="mt-4 text-primary font-bold text-sm hover:underline">Criar primeiro item aqui</button>
                             </div>
-                        );
-                    })}
-                    {infoServicesList.length === 0 && <div className="col-span-3 text-center py-20 text-slate-500">Nenhum serviço cadastrado.</div>}
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -277,10 +417,6 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
             {internalView === 'FORM' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-right-8 duration-500">
                     <div className="lg:col-span-2 space-y-6">
-                        
-                        {/* Type Selection (Only shown if Editing an existing item, to allow changing type, OR if creating new from Catalog view. 
-                            Hidden if coming from explicit Sidebar "New Folder" or "New Doc" links to allow focus) */}
-                        {/* Actually, let's keep it simple: If editing, show it. If new, hide it because the menu already decided. */}
                         {formData.id && (
                             <div className="bg-white dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-sm">category</span> Tipo de Item</h3>
@@ -466,6 +602,46 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
                         <button onClick={handleSave} disabled={isSaving} className="w-full py-4 rounded-xl text-sm font-bold bg-primary hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
                             {isSaving ? <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span> : <span className="material-symbols-outlined text-lg">check</span>} Salvar Alterações
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE CONFIRMATION MODAL */}
+            {deleteId && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-6 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 relative">
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-500 mb-4 border border-red-200 dark:border-red-900/50">
+                                <span className="material-symbols-outlined text-3xl">delete_forever</span>
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Excluir Item?</h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+                                Esta ação <strong>não pode ser desfeita</strong>. O item será removido permanentemente do catálogo de serviços.
+                            </p>
+                        </div>
+                        
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setDeleteId(null)}
+                                disabled={isDeleting}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmDelete}
+                                disabled={isDeleting}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 transition-colors flex items-center justify-center gap-2"
+                            >
+                                {isDeleting ? (
+                                    <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                                ) : (
+                                    <>
+                                        <span>Confirmar</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

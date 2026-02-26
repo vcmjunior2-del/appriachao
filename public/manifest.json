@@ -1,0 +1,23 @@
+{
+  "short_name": "Riachão",
+  "name": "Riachão Cidadão",
+  "icons": [
+    {
+      "src": "https://picsum.photos/id/192/192/192",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://picsum.photos/id/512/512/512",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#135bec",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}

@@ -8,11 +8,12 @@
     <!-- iOS Web App Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Riachão App" />
-    <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/192/city-hall.png">
+    <meta name="apple-mobile-web-app-title" content="Riachão" />
+    <link rel="apple-touch-icon" href="https://picsum.photos/id/192/192/192">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
 
     <meta name="theme-color" content="#f6f6f8" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#101622" media="(prefers-color-scheme: dark)" />
@@ -127,19 +128,29 @@
         z-index: 20 !important;
       }
 
-      /* --- Page Transitions --- */
+      /* --- REMOVE LEAFLET ATTRIBUTION --- */
+      .leaflet-control-attribution a[href*="leafletjs.com"] {
+        display: none !important;
+      }
+      /* Removes the "Leaflet | " separator text */
+      .leaflet-control-attribution .leaflet-control-attribution-prefix {
+        display: none !important;
+      }
+
+      /* --- Fluid Page Transitions --- */
       .page-enter {
-        animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: pageEnter 0.35s cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+        will-change: opacity, transform;
       }
       
       @keyframes pageEnter {
         from {
           opacity: 0;
-          transform: translateY(12px) scale(0.98);
+          transform: translateY(10px);
         }
         to {
           opacity: 1;
-          transform: translateY(0) scale(1);
+          transform: translateY(0);
         }
       }
     </style>
@@ -153,8 +164,10 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

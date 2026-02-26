@@ -212,7 +212,14 @@ const AdminRequestsDetails: React.FC<AdminRequestsDetailsProps> = ({ request, se
                 if (mapContainerRef.current) {
                     if (mapInstanceRef.current) mapInstanceRef.current.remove();
                     
-                    const map = window.L.map(mapContainerRef.current, { zoomControl: false }).setView([request.location!.lat, request.location!.lng], 17);
+                    const map = window.L.map(mapContainerRef.current, { zoomControl: false });
+                    
+                    // Remove Leaflet Prefix
+                    if (map.attributionControl) {
+                      map.attributionControl.setPrefix(false);
+                    }
+
+                    map.setView([request.location!.lat, request.location!.lng], 17);
                     
                     // UPDATED TO OPENSTREETMAP STANDARD
                     window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
@@ -222,8 +229,6 @@ const AdminRequestsDetails: React.FC<AdminRequestsDetailsProps> = ({ request, se
                     
                     // --- CUSTOM ICON USING SERVICE DATA ---
                     const iconIsImg = isUrl(request.icon);
-                    // Use Tailwind classes directly or fallback. Since Leaflet can't parse Tailwind classes without the CSS being loaded,
-                    // and we are in a component that has Tailwind, this works because the class names are put into the DOM.
                     
                     const iconHtml = `
                         <div style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;">

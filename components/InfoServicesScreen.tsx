@@ -3,16 +3,24 @@ import React, { useState, useEffect } from 'react';
 import { Screen, InfoServiceDefinition } from '../types';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import { useAlert } from '../contexts/AlertContext';
 
 interface InfoServicesScreenProps {
   onBack: () => void;
   onNavigateToTracker?: () => void; 
 }
 
+// --- Global Cache to prevent reloading flicker ---
+let cachedServices: InfoServiceDefinition[] | null = null;
+
 const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTracker: () => void }> = ({ onBack, onNavigateToTracker }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [services, setServices] = useState<InfoServiceDefinition[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Initialize with cache if available
+  const [services, setServices] = useState<InfoServiceDefinition[]>(cachedServices || []);
+  
+  // Only show loading if we don't have cached data
+  const [loading, setLoading] = useState(cachedServices === null);
+  const { showAlert } = useAlert();
 
   // --- Folder Navigation State ---
   const [currentParentId, setCurrentParentId] = useState<string | null>(null);
@@ -26,37 +34,37 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
   const getColorClasses = (theme: string) => {
       switch(theme) {
           case 'blue': return { 
-              bg: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/10', 
+              bg: 'bg-blue-50 dark:bg-blue-900/20', 
               icon: 'text-blue-600 dark:text-blue-400',
               border: 'border-blue-100 dark:border-blue-800' 
           };
           case 'green': return { 
-              bg: 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-900/10', 
-              icon: 'text-emerald-600 dark:text-emerald-400',
-              border: 'border-emerald-100 dark:border-emerald-800' 
+              bg: 'bg-green-50 dark:bg-green-900/20', 
+              icon: 'text-green-600 dark:text-green-400',
+              border: 'border-green-100 dark:border-green-800' 
           };
           case 'red': return { 
-              bg: 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-900/10', 
+              bg: 'bg-red-50 dark:bg-red-900/20', 
               icon: 'text-red-600 dark:text-red-400',
               border: 'border-red-100 dark:border-red-800' 
           };
           case 'yellow': return { 
-              bg: 'bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-900/10', 
+              bg: 'bg-amber-50 dark:bg-amber-900/20', 
               icon: 'text-amber-600 dark:text-amber-400',
               border: 'border-amber-100 dark:border-amber-800' 
           };
           case 'purple': return { 
-              bg: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-900/10', 
+              bg: 'bg-purple-50 dark:bg-purple-900/20', 
               icon: 'text-purple-600 dark:text-purple-400',
               border: 'border-purple-100 dark:border-purple-800' 
           };
           case 'orange': return { 
-              bg: 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-900/10', 
+              bg: 'bg-orange-50 dark:bg-orange-900/20', 
               icon: 'text-orange-600 dark:text-orange-400',
               border: 'border-orange-100 dark:border-orange-800' 
           };
           default: return { 
-              bg: 'bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900', 
+              bg: 'bg-slate-50 dark:bg-slate-800', 
               icon: 'text-slate-600 dark:text-slate-300',
               border: 'border-slate-100 dark:border-slate-700' 
           };
@@ -68,6 +76,7 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
         (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InfoServiceDefinition));
             setServices(data);
+            cachedServices = data; // Update cache
             setLoading(false);
         },
         (error) => {
@@ -111,9 +120,12 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
           // Open Web Browser
           setActiveService(service);
       } else {
-          alert("Serviço em fase de integração.");
+          showAlert({ message: "Serviço em fase de integração.", type: 'info' });
       }
   };
+
+  // Helper to check for Image URL
+  const isUrl = (str: string) => str && (str.includes('http') || str.includes('data:'));
 
   // --- Logic: Filtering ---
   
@@ -133,6 +145,8 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
   const currentFolderName = currentParentId 
       ? folderHistory[folderHistory.length - 1]?.title 
       : 'Serviços Online';
+
+  const isRoot = !currentParentId && !searchTerm;
 
   // --- RENDER: INTERNAL BROWSER (IFRAME) ---
   if (activeService) {
@@ -220,89 +234,110 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
 
       <main className="flex-1 px-4 py-6 space-y-4 overflow-y-auto no-scrollbar">
         {loading ? (
-             <div className="flex flex-col items-center justify-center pt-10 gap-3">
-                 <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
-                 <p className="text-sm text-gray-500">Carregando catálogo...</p>
+             // SKELETON LOADER
+             <div className="grid grid-cols-2 gap-3 animate-pulse">
+                 <div className="col-span-2 h-32 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                 <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                 <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                 <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                 <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
              </div>
         ) : (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 grid grid-cols-2 gap-4">
+            <div className="w-full">
                 
-                {/* LIST RENDERER */}
-                {displayedServices.length === 0 ? (
-                    <div className="col-span-2 flex flex-col items-center justify-center pt-10 text-center">
-                        <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">folder_off</span>
-                        <p className="text-gray-500">Nenhum serviço encontrado nesta pasta.</p>
+                {/* STATIC SERVICES BANNER (Only at root) */}
+                <div className={`relative w-full h-32 rounded-3xl bg-gradient-to-r from-[#135bec] to-blue-500 overflow-hidden shadow-lg p-5 flex-col justify-center mb-6 shrink-0 ${isRoot ? 'flex' : 'hidden'}`}>
+                    <div className="absolute right-0 top-0 h-full w-1/2 opacity-10">
+                        <span className="material-symbols-outlined text-[140px] text-white -mr-8 -mt-4">captive_portal</span>
                     </div>
-                ) : (
-                    displayedServices.map((service, index) => {
-                        // --- SPECIAL CARD: TRACKER BANNER ---
-                        if (service.actionType === 'TRACKER_BANNER') {
-                            return (
-                                <button 
-                                    key={service.id}
-                                    onClick={() => handleItemClick(service)}
-                                    className="col-span-2 w-full relative group overflow-hidden rounded-3xl bg-[#1e293b] text-white p-5 shadow-lg shadow-slate-900/10 active:scale-[0.98] transition-all flex items-center justify-between min-h-[120px]"
-                                    style={{ animationDelay: `${index * 50}ms` }}
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-90 group-hover:opacity-100 transition-opacity"></div>
-                                    <div className="absolute -right-6 -bottom-6 text-white/10">
-                                        <span className="material-symbols-outlined text-[100px]">local_shipping</span>
-                                    </div>
-                                    
-                                    <div className="relative z-10 flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center animate-pulse">
-                                            <span className="material-symbols-outlined text-2xl">my_location</span>
-                                        </div>
-                                        <div className="text-left">
-                                            <div className="flex items-center gap-2 mb-0.5">
-                                                <h3 className="font-bold text-lg leading-none">{service.title}</h3>
-                                                <span className="bg-red-500 text-[9px] font-bold px-1.5 py-0.5 rounded text-white animate-pulse">AO VIVO</span>
-                                            </div>
-                                            <p className="text-xs text-emerald-100 font-medium">{service.description}</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="relative z-10 bg-white/20 p-2 rounded-full">
-                                        <span className="material-symbols-outlined">chevron_right</span>
-                                    </div>
-                                </button>
-                            );
-                        }
+                    <h3 className="text-white font-black text-lg relative z-10 leading-tight">Serviços<br/>Digitais</h3>
+                    <p className="text-blue-100 text-[10px] mt-1 relative z-10 max-w-[65%] font-medium opacity-90">
+                        Acesse documentos, taxas e consultas de forma rápida e segura.
+                    </p>
+                </div>
 
-                        // --- STANDARD CARDS & FOLDERS ---
+                {/* EMPTY STATE */}
+                <div className={`flex-col items-center justify-center pt-10 text-center ${displayedServices.length === 0 ? 'flex' : 'hidden'}`}>
+                    <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">folder_off</span>
+                    <p className="text-gray-500">Nenhum serviço encontrado nesta pasta.</p>
+                </div>
+
+                {/* LIST RENDERER */}
+                <div className={`grid-cols-2 gap-3 ${displayedServices.length > 0 ? 'grid' : 'hidden'}`}>
+                    {services.map((service, index) => {
+                        const isDisplayed = displayedServices.some(s => s.id === service.id);
+                        
+                        // --- STANDARD CARDS & FOLDERS (Layout Unificado) ---
                         const colors = getColorClasses(service.colorTheme);
+                        const iconIsImg = isUrl(service.icon);
+                        const isTracker = service.actionType === 'TRACKER_BANNER';
+
+                        // Styling overrides for Tracker to keep visual punch while maintaining grid size
+                        const cardBg = isTracker 
+                            ? 'bg-gradient-to-br from-emerald-600 to-green-500 border-transparent shadow-emerald-500/20' 
+                            : `bg-white dark:bg-card-dark border ${colors.border}`;
+                        
+                        const textColor = isTracker ? 'text-white' : 'text-slate-900 dark:text-white';
+                        const descColor = isTracker ? 'text-emerald-100' : 'text-slate-500 dark:text-slate-400';
+                        const iconBox = isTracker ? 'bg-white/20 text-white backdrop-blur-sm' : `${colors.bg} ${colors.icon}`;
+                        const badgeStyle = isTracker ? 'bg-white text-emerald-700' : `${colors.bg} ${colors.icon}`;
+
                         return (
                             <button 
                                 key={service.id}
                                 onClick={() => handleItemClick(service)}
-                                className={`relative flex flex-col items-start p-4 rounded-2xl bg-white dark:bg-card-dark border ${colors.border} shadow-sm hover:shadow-md active:scale-[0.97] transition-all group h-full min-h-[140px] text-left`}
-                                style={{ animationDelay: `${index * 50}ms` }}
+                                className={`relative flex-col items-start p-4 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group min-h-[170px] justify-between overflow-hidden ${cardBg} ${isDisplayed ? 'flex' : 'hidden'}`}
                             >
-                                <div className="flex justify-between w-full items-start mb-3">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${colors.bg} ${colors.icon} shadow-inner`}>
-                                        <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">
-                                            {service.isFolder ? 'folder' : service.icon}
-                                        </span>
+                                {/* Background Decor for Tracker */}
+                                {isTracker && (
+                                    <div className="absolute -right-6 -bottom-6 opacity-20 pointer-events-none transform rotate-12">
+                                        <span className="material-symbols-outlined text-[100px] text-white">local_shipping</span>
                                     </div>
-                                    <span className="material-symbols-outlined text-gray-300 text-sm">
-                                        {service.isFolder ? 'chevron_right' : 'open_in_new'}
+                                )}
+
+                                {/* Top Row: Icon and Badge */}
+                                <div className="flex w-full justify-between items-start mb-3 relative z-10">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${iconBox} shrink-0 overflow-hidden transition-transform group-hover:scale-105 shadow-inner`}>
+                                        {iconIsImg ? (
+                                            <img src={service.icon} alt={service.title} className="w-full h-full object-contain p-2" />
+                                        ) : (
+                                            <span className="material-symbols-outlined text-[32px] group-hover:scale-110 transition-transform">
+                                                {service.isFolder ? 'folder' : service.icon}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {/* Action/Type Badge */}
+                                    <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${badgeStyle} flex items-center gap-1 shadow-sm`}>
+                                        {isTracker && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping absolute opacity-75"></span>}
+                                        {isTracker && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 relative"></span>}
+                                        {service.isFolder ? 'Pasta' : isTracker ? 'Ao Vivo' : 'Acesso'}
                                     </span>
                                 </div>
                                 
-                                <div className="flex-1">
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight mb-1 line-clamp-2">{service.title}</h3>
-                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{service.description}</p>
+                                {/* Content */}
+                                <div className="w-full flex-1 flex flex-col gap-1 mb-2 relative z-10">
+                                    <h3 className={`text-sm font-black leading-tight line-clamp-2 ${textColor}`}>
+                                        {service.title}
+                                    </h3>
+                                    {/* Reduced font size to 9px/10px for better fit */}
+                                    <p className={`text-[9px] font-semibold line-clamp-3 leading-tight mt-0.5 ${descColor}`}>
+                                        {service.description}
+                                    </p>
                                 </div>
-                                
-                                {service.isFolder && (
-                                    <div className="absolute bottom-4 right-4 opacity-50 text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-bold text-slate-500 uppercase">
-                                        Pasta
-                                    </div>
-                                )}
+
+                                {/* Footer Action */}
+                                <div className={`w-full pt-2 mt-auto border-t flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity relative z-10 ${isTracker ? 'border-white/20' : 'border-slate-100 dark:border-slate-800'}`}>
+                                    <span className={`material-symbols-outlined text-[12px] ${isTracker ? 'text-emerald-100' : 'text-slate-400'}`}>
+                                        {service.isFolder ? 'folder_open' : isTracker ? 'location_on' : 'open_in_new'}
+                                    </span>
+                                    <span className={`text-[9px] font-bold uppercase tracking-wide truncate w-full text-left ${isTracker ? 'text-emerald-100' : 'text-slate-400'}`}>
+                                        {service.isFolder ? 'Abrir Categoria' : isTracker ? 'Rastrear Agora' : 'Acessar Serviço'}
+                                    </span>
+                                </div>
                             </button>
                         );
-                    })
-                )}
+                    })}
+                </div>
             </div>
         )}
       </main>

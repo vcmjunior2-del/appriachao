@@ -9,11 +9,19 @@ interface CityGuideScreenProps {
   initialCategory?: string;
 }
 
+// Cache global variable
+let cachedPlaces: CityPlace[] | null = null;
+
 const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCategory }) => {
   const [activeCategory, setActiveCategory] = useState(initialCategory || 'Todos');
   const [searchTerm, setSearchTerm] = useState('');
-  const [places, setPlaces] = useState<CityPlace[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Init with cache
+  const [places, setPlaces] = useState<CityPlace[]>(cachedPlaces || []);
+  
+  // CRITICAL: Only show loading if cache is empty. 
+  // If cache exists, we show content instantly while background update happens.
+  const [loading, setLoading] = useState(cachedPlaces === null);
 
   const categories = ['Todos', 'Úteis', 'Saúde', 'Educação', 'Hospedagem', 'Gastronomia', 'Comércio', 'Lazer'];
 
@@ -23,6 +31,7 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
         (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CityPlace));
             setPlaces(data);
+            cachedPlaces = data; // Update cache
             setLoading(false);
         },
         (error) => {

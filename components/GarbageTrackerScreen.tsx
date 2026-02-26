@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { GarbageTruck } from '../types';
 
@@ -17,31 +17,45 @@ interface GarbageTrackerScreenProps {
 const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) => {
   const mapContainerId = "garbage-map-container";
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<{ [key: string]: any }>({}); // Store markers by ID
+  const markersRef = useRef<{ [key: string]: any }>({}); 
   const userMarkerRef = useRef<any>(null);
+  const routePolylineRef = useRef<any>(null);
   
-  // State
   const [trucks, setTrucks] = useState<GarbageTruck[]>([]);
   const [userPos, setUserPos] = useState<{lat: number, lng: number} | null>(null);
   const [selectedTruck, setSelectedTruck] = useState<GarbageTruck | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [routePoints, setRoutePoints] = useState<{lat: number, lng: number}[]>([]);
   
-  // --- 1. Real-time Database Listener ---
+  // --- 1. Load Route from Admin Config ---
   useEffect(() => {
-    // Listen to trucks collection
-    const q = query(collection(db, "garbage_trucks")); // Add 'where("active", "==", true)' if needed
+      const fetchRoute = async () => {
+          try {
+              const docRef = doc(db, "app_config", "garbage_route");
+              const docSnap = await getDoc(docRef);
+              if (docSnap.exists() && docSnap.data().points) {
+                  setRoutePoints(docSnap.data().points);
+              }
+          } catch (e) {
+              console.error("Error loading route", e);
+          }
+      };
+      fetchRoute();
+  }, []);
+
+  // --- 2. Real-time Database Listener ---
+  useEffect(() => {
+    const q = query(collection(db, "garbage_trucks"));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedTrucks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GarbageTruck));
         setTrucks(fetchedTrucks);
         setIsLoading(false);
         
-        // If we have a selected truck, update its data
         if (selectedTruck) {
             const updated = fetchedTrucks.find(t => t.id === selectedTruck.id);
             if (updated) setSelectedTruck(updated);
         } else if (fetchedTrucks.length > 0) {
-            // Auto select first truck if none selected
             setSelectedTruck(fetchedTrucks[0]);
         }
     }, (error) => {
@@ -50,15 +64,13 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
     });
 
     return () => unsubscribe();
-  }, []); // Run once on mount
+  }, []);
 
-  // --- 2. Get User Location ---
+  // --- 3. Get User Location ---
   useEffect(() => {
       if (navigator.geolocation) {
           const watchId = navigator.geolocation.watchPosition(
-              (pos) => {
-                  setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-              },
+              (pos) => setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
               (err) => console.warn("GPS Error", err),
               { enableHighAccuracy: true }
           );
@@ -66,16 +78,22 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
       }
   }, []);
 
-  // --- 3. Map Initialization & Updates ---
+  // --- 4. Map Initialization & Updates ---
   useEffect(() => {
       if (!window.L) return;
 
-      // Initialize Map
+      // Init Map
       if (!mapRef.current) {
-          const defaultCenter = userPos ? [userPos.lat, userPos.lng] : [-11.8070, -39.3890];
-          const map = window.L.map(mapContainerId, { zoomControl: false }).setView(defaultCenter, 15);
+          const defaultCenter = [-11.8070, -39.3890];
+          const map = window.L.map(mapContainerId, { zoomControl: false });
           
-          // CHANGED TO OPENSTREETMAP STANDARD
+          // Remove Leaflet Prefix
+          if (map.attributionControl) {
+            map.attributionControl.setPrefix(false);
+          }
+
+          map.setView(defaultCenter, 15);
+          
           window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
               maxZoom: 19,
               attribution: '&copy; OpenStreetMap'
@@ -86,29 +104,64 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
 
       const map = mapRef.current;
 
-      // Update User Marker
+      // Draw Route Line (Updates if routePoints change)
+      if (routePoints.length > 0) {
+          if (routePolylineRef.current) {
+              routePolylineRef.current.setLatLngs(routePoints);
+          } else {
+              routePolylineRef.current = window.L.polyline(routePoints, {
+                  color: '#3b82f6', // Blue-500
+                  weight: 5,
+                  opacity: 0.6,
+                  lineCap: 'round',
+                  lineJoin: 'round'
+              }).addTo(map);
+              // Fit bounds to show route initially
+              map.fitBounds(routePolylineRef.current.getBounds(), { padding: [50, 50] });
+          }
+      }
+
+      // Update User Marker (Reforçado para alta visibilidade - Bolinha Azul Pulsante)
       if (userPos) {
           if (userMarkerRef.current) {
               userMarkerRef.current.setLatLng([userPos.lat, userPos.lng]);
           } else {
               const userIcon = window.L.divIcon({
-                  className: 'user-marker-icon',
-                  html: `<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-md pulse-ring"></div>`,
-                  iconSize: [16, 16],
-                  iconAnchor: [8, 8]
+                  className: 'user-marker-group',
+                  html: `
+                    <div class="relative flex flex-col items-center justify-center w-0 h-0 overflow-visible">
+                        <!-- Label Bubble -->
+                        <div class="absolute -top-12 bg-white/95 backdrop-blur-sm text-blue-700 text-[10px] font-black px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap border-2 border-blue-500 transform transition-transform hover:scale-110 flex flex-col items-center z-50">
+                            Você está aqui
+                            <div class="absolute -bottom-1.5 w-3 h-3 bg-blue-500 rotate-45"></div>
+                        </div>
+                        
+                        <!-- The Glowing Blue Dot (GPS Style) -->
+                        <div class="w-6 h-6 bg-[#135bec] rounded-full border-[4px] border-white shadow-[0_0_15px_rgba(19,91,236,0.6)] z-40 relative flex items-center justify-center">
+                            <div class="w-2 h-2 bg-white rounded-full opacity-30 animate-pulse"></div>
+                        </div>
+                        
+                        <!-- Extra Outer Ring for Visibility -->
+                        <div class="absolute w-14 h-14 bg-[#135bec] rounded-full opacity-10 -z-20 border border-blue-500/20"></div>
+                        
+                        <!-- Pulse Ring Animation -->
+                        <div class="absolute w-20 h-20 bg-[#135bec] rounded-full opacity-20 animate-ping -z-10"></div>
+                    </div>
+                  `,
+                  iconSize: [0, 0], 
+                  iconAnchor: [0, 0] 
               });
-              userMarkerRef.current = window.L.marker([userPos.lat, userPos.lng], { icon: userIcon }).addTo(map);
+              userMarkerRef.current = window.L.marker([userPos.lat, userPos.lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
           }
       }
 
       // Update Truck Markers
       trucks.forEach(truck => {
-          // Icon based on status
           const isMoving = truck.status === 'Em Rota';
           const truckHtml = `
-            <div class="relative w-12 h-12 flex items-center justify-center transition-all duration-500">
+            <div class="relative w-12 h-12 flex items-center justify-center transition-all duration-300">
                 ${isMoving ? '<div class="absolute inset-0 bg-green-500 rounded-full opacity-30 animate-ping"></div>' : ''}
-                <div class="relative z-10 ${isMoving ? 'bg-green-600' : 'bg-gray-600'} text-white p-2 rounded-full shadow-lg border-2 border-white cursor-pointer hover:scale-110 transition-transform">
+                <div class="relative z-10 ${isMoving ? 'bg-green-600' : 'bg-slate-700'} text-white p-2 rounded-full shadow-lg border-2 border-white cursor-pointer hover:scale-110 transition-transform">
                     <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1">local_shipping</span>
                 </div>
             </div>
@@ -122,15 +175,13 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
           });
 
           if (markersRef.current[truck.id]) {
-              // Update position with smooth animation (Leaflet handles basics, for true interpolation we'd need more code)
               markersRef.current[truck.id].setLatLng([truck.lat, truck.lng]);
               markersRef.current[truck.id].setIcon(truckIcon);
           } else {
-              // Create new marker
               const marker = window.L.marker([truck.lat, truck.lng], { icon: truckIcon }).addTo(map);
               marker.on('click', () => {
                   setSelectedTruck(truck);
-                  map.flyTo([truck.lat, truck.lng], 16);
+                  map.flyTo([truck.lat, truck.lng], 17);
               });
               markersRef.current[truck.id] = marker;
           }
@@ -144,7 +195,7 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
           }
       });
 
-  }, [trucks, userPos]);
+  }, [trucks, userPos, routePoints]);
 
   const handleCenterTruck = () => {
       if (mapRef.current && selectedTruck) {
@@ -153,7 +204,7 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
   };
 
   const formatLastUpdate = (timestamp: any) => {
-      if (!timestamp) return 'Desconhecido';
+      if (!timestamp) return '...';
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };

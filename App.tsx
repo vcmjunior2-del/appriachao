@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Screen, ServiceTypeDefinition, Secretariat } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ConfigProvider } from './contexts/ConfigContext';
+import { AlertProvider, useAlert } from './contexts/AlertContext';
 import { auth, db } from './firebaseConfig';
 import { collection, query, where, onSnapshot } from 'firebase/firestore'; 
 import WelcomeScreen from './components/WelcomeScreen';
@@ -28,6 +29,7 @@ import { DashboardBottomNav } from './components/BottomNav';
 
 const AppContent: React.FC = () => {
   const { currentUser, loading } = useAuth();
+  const { showAlert } = useAlert();
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.WELCOME);
   const [selectedService, setSelectedService] = useState<ServiceTypeDefinition | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -129,9 +131,9 @@ const AppContent: React.FC = () => {
     } catch (error: any) {
         console.error("Guest login failed", error);
         if (error.code === 'auth/operation-not-allowed') {
-            alert("Login anônimo não habilitado no Firebase Console.");
+            showAlert({ message: "Login anônimo não habilitado no Firebase Console.", type: 'error' });
         } else {
-            alert("Erro ao entrar como convidado. Tente novamente.");
+            showAlert({ message: "Erro ao entrar como convidado. Tente novamente.", type: 'error' });
         }
     }
   };
@@ -174,6 +176,58 @@ const AppContent: React.FC = () => {
      return <SplashScreen isVisible={true} />;
   }
 
+  const isTabScreen = (screen: Screen) => {
+      return [Screen.HOME, Screen.INFO_SERVICES, Screen.SERVICES, Screen.EMERGENCY, Screen.PROFILE, Screen.REQUESTS, Screen.ALERTS].includes(screen);
+  }
+
+  const getPersistentScreenClass = (screen: Screen) => {
+      const isActive = currentScreen === screen;
+      return `absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden custom-scrollbar pb-24 bg-background-light dark:bg-background-dark transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isActive ? 'opacity-100 z-10 scale-100 translate-y-0' : 'opacity-0 z-0 pointer-events-none scale-[0.95] translate-y-4'}`;
+  }
+
+  const renderPersistentScreens = () => {
+      if (!currentUser) return null;
+      return (
+        <>
+            <div className={getPersistentScreenClass(Screen.HOME)}>
+                <HomeScreen onNavigate={handleNavigate} />
+            </div>
+            <div className={getPersistentScreenClass(Screen.INFO_SERVICES)}>
+                <InfoServicesScreen 
+                  onBack={() => setCurrentScreen(Screen.HOME)} 
+                  onNavigateToTracker={() => setCurrentScreen(Screen.GARBAGE_TRACKER)}
+                />
+            </div>
+            <div className={getPersistentScreenClass(Screen.SERVICES)}>
+                <ServicesScreen 
+                  onBack={() => setCurrentScreen(Screen.HOME)} 
+                  onSelectService={handleSelectService}
+                  activeSecretariat={activeSecretariat}
+                  onSelectSecretariat={setActiveSecretariat}
+               />
+            </div>
+            <div className={getPersistentScreenClass(Screen.REQUESTS)}>
+                <RequestsScreen 
+                  onBack={() => setCurrentScreen(returnScreen)} 
+                  onSelectRequest={handleSelectRequest} 
+               />
+            </div>
+            <div className={getPersistentScreenClass(Screen.ALERTS)}>
+                <AlertsScreen onBack={() => setCurrentScreen(returnScreen)} />
+            </div>
+            <div className={getPersistentScreenClass(Screen.EMERGENCY)}>
+                <EmergencyScreen onBack={() => setCurrentScreen(Screen.HOME)} />
+            </div>
+            <div className={getPersistentScreenClass(Screen.PROFILE)}>
+                <ProfileScreen 
+                  onLogout={() => setCurrentScreen(Screen.WELCOME)} 
+                  onNavigate={handleNavigate} 
+               />
+            </div>
+        </>
+      );
+  };
+
   const renderScreen = () => {
     switch (currentScreen) {
       case Screen.WELCOME:
@@ -205,48 +259,28 @@ const AppContent: React.FC = () => {
       case Screen.ADMIN_DASHBOARD:
         return <AdminDashboard onLogout={() => setCurrentScreen(Screen.WELCOME)} />;
 
-      // --- App Routes ---
+      // --- Persistent Tabs (Handled by renderPersistentScreens) ---
       case Screen.HOME:
-        return <HomeScreen onNavigate={handleNavigate} />;
       case Screen.SERVICES:
-        return <ServicesScreen 
-                  onBack={() => setCurrentScreen(Screen.HOME)} 
-                  onSelectService={handleSelectService}
-                  activeSecretariat={activeSecretariat}
-                  onSelectSecretariat={setActiveSecretariat}
-               />;
       case Screen.INFO_SERVICES: 
-        return <InfoServicesScreen 
-                  onBack={() => setCurrentScreen(Screen.HOME)} 
-                  onNavigateToTracker={() => setCurrentScreen(Screen.GARBAGE_TRACKER)}
-               />;
       case Screen.REQUESTS:
-        return <RequestsScreen 
-                  onBack={() => setCurrentScreen(returnScreen)} 
-                  onSelectRequest={handleSelectRequest} 
-               />;
+      case Screen.PROFILE:
+      case Screen.ALERTS:
+      case Screen.EMERGENCY:
+        return null;
+
+      // --- Transient Screens ---
       case Screen.REQUEST_TRACKING:
         if (!selectedRequestId) return <RequestsScreen onBack={() => setCurrentScreen(returnScreen)} onSelectRequest={handleSelectRequest} />;
         return <RequestTrackingScreen 
                   requestId={selectedRequestId} 
                   onBack={() => setCurrentScreen(Screen.REQUESTS)} 
                />;
-      case Screen.PROFILE:
-        return <ProfileScreen 
-                  onLogout={() => setCurrentScreen(Screen.WELCOME)} 
-                  onNavigate={handleNavigate} 
-               />;
       case Screen.SERVICE_DETAILS:
         return <ServiceDetailsScreen 
                     onBack={() => setCurrentScreen(Screen.SERVICES)} 
                     service={selectedService}
                />;
-      case Screen.ALERTS:
-        return <AlertsScreen onBack={() => setCurrentScreen(returnScreen)} />;
-      case Screen.EMERGENCY:
-        return <EmergencyScreen onBack={() => setCurrentScreen(Screen.HOME)} />;
-        
-      // New Routes
       case Screen.WEATHER:
         return <WeatherScreen onBack={() => setCurrentScreen(Screen.HOME)} />;
       case Screen.DEMOGRAPHICS:
@@ -276,17 +310,20 @@ const AppContent: React.FC = () => {
                         currentScreen !== Screen.GARBAGE_TRACKER;
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex justify-center">
+    <div className="h-[100dvh] bg-gray-100 dark:bg-gray-900 flex justify-center overflow-hidden">
         {showSplash && <SplashScreen isVisible={showSplash} />}
 
         {isAdminMode ? (
-             <div className="min-h-screen bg-[#111a22] w-full animate-in fade-in duration-500">
+             <div className="h-full w-full animate-in fade-in duration-500 overflow-y-auto custom-scrollbar bg-[#111a22]">
                 {renderScreen()}
             </div>
         ) : (
-             <div className="w-full max-w-md bg-background-light dark:bg-background-dark min-h-screen shadow-2xl overflow-hidden relative flex flex-col">
-                <div key={currentScreen} className="page-enter flex-1 flex flex-col w-full h-full">
-                    {renderScreen()}
+             <div className="w-full max-w-md bg-background-light dark:bg-background-dark h-full shadow-2xl overflow-hidden relative flex flex-col">
+                <div className="flex-1 w-full h-full relative overflow-hidden">
+                    {renderPersistentScreens()}
+                    <div className={`absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden custom-scrollbar pb-24 ${!isTabScreen(currentScreen) ? 'z-20' : 'z-0 pointer-events-none'}`}>
+                        {renderScreen()}
+                    </div>
                 </div>
                 {showBottomNav && (
                     <DashboardBottomNav 
@@ -304,7 +341,9 @@ const App: React.FC = () => {
     return (
         <AuthProvider>
             <ConfigProvider>
-                <AppContent />
+                <AlertProvider>
+                    <AppContent />
+                </AlertProvider>
             </ConfigProvider>
         </AuthProvider>
     );

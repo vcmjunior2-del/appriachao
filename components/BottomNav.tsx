@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Screen } from '../types';
 import { useAuth } from '../contexts/AuthContext'; // Import Auth
@@ -13,66 +12,63 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate }) => {
 };
 
 export const DashboardBottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate }) => {
-    const { currentUser } = useAuth(); // Get user
+    const { currentUser, userData } = useAuth(); // Get user and userData
 
-    return (
-        <nav className="fixed bottom-0 z-30 w-full max-w-md bg-white dark:bg-card-dark border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
-            <div className="grid grid-cols-5 h-[4.5rem] px-1">
-                
-                {/* Item 1: Início */}
-                <button 
-                    onClick={() => onNavigate(Screen.HOME)}
-                    className={`group flex flex-col items-center justify-end pb-2 gap-1 w-full h-full transition-colors ${currentScreen === Screen.HOME ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                >
-                    <span className="material-symbols-outlined text-[26px] transition-transform group-active:scale-90" style={{ fontVariationSettings: currentScreen === Screen.HOME ? "'FILL' 1" : "'FILL' 0" }}>home</span>
-                    <span className="text-[10px] font-medium leading-none tracking-wide">Início</span>
-                </button>
-                
-                {/* Item 2: Serviços (Info Services / Portal) */}
-                <button 
-                    onClick={() => onNavigate(Screen.INFO_SERVICES)}
-                    className={`group flex flex-col items-center justify-end pb-2 gap-1 w-full h-full transition-colors ${currentScreen === Screen.INFO_SERVICES ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                >
-                    <span className="material-symbols-outlined text-[26px] transition-transform group-active:scale-90" style={{ fontVariationSettings: currentScreen === Screen.INFO_SERVICES ? "'FILL' 1" : "'FILL' 0" }}>grid_view</span>
-                    <span className="text-[10px] font-medium leading-none tracking-wide">Serviços</span>
-                </button>
+    const renderNavItem = (screen: Screen, icon: string, label: string, isProfile = false) => {
+        const isActive = currentScreen === screen;
+        
+        return (
+            <button 
+                onClick={() => onNavigate(screen)}
+                className={`group relative flex flex-col items-center justify-end pb-3 gap-1 w-full h-full transition-all duration-300 ${
+                    isActive ? 'text-white' : 'text-blue-200 hover:text-white'
+                }`}
+            >
+                {/* Top Indicator */}
+                <span className={`absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1 bg-white rounded-b-full shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-300 ease-out ${
+                    isActive ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+                }`} />
 
-                {/* Item 3: Ocorrências (Reportar Problemas) */}
-                <button 
-                    onClick={() => onNavigate(Screen.SERVICES)}
-                    className={`group flex flex-col items-center justify-end pb-2 gap-1 w-full h-full transition-colors ${currentScreen === Screen.SERVICES ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                >
-                    <span className="material-symbols-outlined text-[26px] transition-transform group-active:scale-90" style={{ fontVariationSettings: currentScreen === Screen.SERVICES ? "'FILL' 1" : "'FILL' 0" }}>assignment_late</span>
-                    <span className="text-[10px] font-medium leading-none tracking-wide">Ocorrências</span>
-                </button>
-
-                {/* Item 4: Emergências (Red) */}
-                <button 
-                    onClick={() => onNavigate(Screen.EMERGENCY)}
-                    className={`group flex flex-col items-center justify-end pb-2 gap-1 w-full h-full transition-colors ${currentScreen === Screen.EMERGENCY ? 'text-red-600 dark:text-red-500' : 'text-red-500/70 dark:text-red-400/70 hover:text-red-600 dark:hover:text-red-400'}`}
-                >
-                    <span className="material-symbols-outlined text-[26px] transition-transform group-active:scale-90" style={{ fontVariationSettings: currentScreen === Screen.EMERGENCY ? "'FILL' 1" : "'FILL' 0" }}>sos</span>
-                    <span className="text-[10px] font-bold leading-none tracking-wide">Emergências</span>
-                </button>
-
-                {/* Item 5: Perfil (PHOTO AVATAR) -> Renomeado para 'Você' */}
-                <button 
-                    onClick={() => onNavigate(Screen.PROFILE)}
-                    className={`group flex flex-col items-center justify-end pb-2 gap-1 w-full h-full transition-colors ${currentScreen === Screen.PROFILE ? 'text-primary' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                >
-                    <div className={`transition-transform group-active:scale-90 ${currentScreen === Screen.PROFILE ? 'scale-110' : ''}`}>
-                        {currentUser?.photoURL ? (
+                {/* Icon */}
+                <div className={`relative transition-all duration-300 ease-out transform ${isActive ? '-translate-y-1 scale-110' : 'translate-y-0 scale-100'}`}>
+                    {isProfile && currentUser?.photoURL ? (
+                        <>
                             <img 
                                 src={currentUser.photoURL} 
                                 alt="Perfil" 
-                                className={`w-7 h-7 rounded-full object-cover border-2 ${currentScreen === Screen.PROFILE ? 'border-primary' : 'border-transparent'}`} 
+                                className={`w-7 h-7 rounded-full object-cover border-2 shadow-sm ${isActive ? 'border-white' : 'border-blue-200/50'}`} 
                             />
-                        ) : (
-                            <span className="material-symbols-outlined text-[26px]" style={{ fontVariationSettings: currentScreen === Screen.PROFILE ? "'FILL' 1" : "'FILL' 0" }}>person</span>
-                        )}
-                    </div>
-                    <span className="text-[10px] font-medium leading-none tracking-wide">Você</span>
-                </button>
+                            {userData?.isVerified && (
+                                <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-full p-[1px] border border-[#135bec] dark:border-[#0e45b5] z-10">
+                                    <span className="material-symbols-outlined text-white text-[8px] font-bold block">verified</span>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <span className="material-symbols-outlined text-[26px]" style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 400" }}>
+                            {icon}
+                        </span>
+                    )}
+                </div>
+
+                {/* Label */}
+                <span className={`text-[10px] font-medium leading-none tracking-wide transition-all duration-300 ${
+                    isActive ? 'opacity-100 font-semibold' : 'opacity-70'
+                }`}>
+                    {label}
+                </span>
+            </button>
+        );
+    };
+
+    return (
+        <nav className="absolute bottom-0 z-30 w-full max-w-md bg-[#135bec] dark:bg-[#0e45b5] shadow-[0_-4px_20px_rgba(0,0,0,0.15)]">
+            <div className="grid grid-cols-5 h-[4.5rem] px-1">
+                {renderNavItem(Screen.HOME, 'home', 'Início')}
+                {renderNavItem(Screen.INFO_SERVICES, 'grid_view', 'Serviços')}
+                {renderNavItem(Screen.SERVICES, 'assignment_late', 'Ocorrências')}
+                {renderNavItem(Screen.EMERGENCY, 'sos', 'Emergências')}
+                {renderNavItem(Screen.PROFILE, 'person', 'Você', true)}
             </div>
         </nav>
     )

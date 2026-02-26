@@ -7,18 +7,26 @@ import { db } from '../firebaseConfig';
 interface ServicesScreenProps {
   onBack: () => void;
   onSelectService: (service: ServiceTypeDefinition) => void;
-  activeSecretariat: Secretariat | null; // (Legacy Prop kept for compatibility if needed, but not used directly for filtering in new logic)
-  onSelectSecretariat: (secretariat: Secretariat | null) => void; // Used to clear selection/state
+  activeSecretariat: Secretariat | null; 
+  onSelectSecretariat: (secretariat: Secretariat | null) => void; 
 }
+
+// --- Global Caches ---
+let cachedSubjects: OccurrenceSubject[] | null = null;
+let cachedSecretariats: Secretariat[] | null = null;
+let cachedServices: ServiceTypeDefinition[] | null = null;
 
 const ServicesScreen: React.FC<ServicesScreenProps> = ({ onBack, onSelectService, activeSecretariat, onSelectSecretariat }) => {
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Data State
-  const [subjects, setSubjects] = useState<OccurrenceSubject[]>([]);
-  const [secretariats, setSecretariats] = useState<Secretariat[]>([]); // Needed for names
-  const [allServices, setAllServices] = useState<ServiceTypeDefinition[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Data State initialized from cache
+  const [subjects, setSubjects] = useState<OccurrenceSubject[]>(cachedSubjects || []);
+  const [secretariats, setSecretariats] = useState<Secretariat[]>(cachedSecretariats || []); 
+  const [allServices, setAllServices] = useState<ServiceTypeDefinition[]>(cachedServices || []);
+  
+  // CRITICAL: Ensure loading is false if caches exist to prevent flicker
+  const hasCache = cachedSubjects !== null && cachedServices !== null;
+  const [loading, setLoading] = useState(!hasCache);
 
   // Active Selection State
   const [activeSubject, setActiveSubject] = useState<OccurrenceSubject | null>(null);
@@ -54,10 +62,17 @@ const ServicesScreen: React.FC<ServicesScreenProps> = ({ onBack, onSelectService
 
   // --- Fetch Data ---
   useEffect(() => {
+    let subsLoaded = false;
+    let servsLoaded = false;
+
     // 1. Fetch Subjects
     const unsubSub = onSnapshot(query(collection(db, "occurrence_subjects"), where("active", "==", true)), 
         (snapshot) => {
-            setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OccurrenceSubject)));
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OccurrenceSubject));
+            setSubjects(data);
+            cachedSubjects = data;
+            subsLoaded = true;
+            if (subsLoaded && servsLoaded) setLoading(false);
         },
         (error) => console.warn("Subjects Error", error)
     );
@@ -65,7 +80,9 @@ const ServicesScreen: React.FC<ServicesScreenProps> = ({ onBack, onSelectService
     // 2. Fetch Secretariats (For Names)
     const unsubSec = onSnapshot(query(collection(db, "secretariats")), 
         (snapshot) => {
-            setSecretariats(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Secretariat)));
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Secretariat));
+            setSecretariats(data);
+            cachedSecretariats = data;
         },
         (error) => console.warn("Secretariats Error", error)
     );
@@ -73,14 +90,20 @@ const ServicesScreen: React.FC<ServicesScreenProps> = ({ onBack, onSelectService
     // 3. Fetch Services
     const unsubServices = onSnapshot(query(collection(db, "service_types"), where("active", "==", true)), 
         (snapshot) => {
-            setAllServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceTypeDefinition)));
-            setLoading(false);
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceTypeDefinition));
+            setAllServices(data);
+            cachedServices = data;
+            servsLoaded = true;
+            if (subsLoaded && servsLoaded) setLoading(false);
         },
         (error) => {
             console.warn("Services Error", error);
             setLoading(false);
         }
     );
+
+    // Safety fallback: If cache exists, ensure loading is false immediately after mount to catch any state drift
+    if (cachedSubjects && cachedServices) setLoading(false);
 
     return () => { unsubSub(); unsubSec(); unsubServices(); }
   }, []);
@@ -168,118 +191,120 @@ const ServicesScreen: React.FC<ServicesScreenProps> = ({ onBack, onSelectService
       <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto no-scrollbar">
         
         {loading ? (
-             <div className="flex flex-col items-center justify-center pt-10 gap-3">
-                 <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
-                 <p className="text-sm text-gray-500">Carregando catálogo...</p>
+             // SKELETON LOADER
+             <div className="space-y-4 animate-pulse">
+                 <div className="w-full h-32 bg-gray-200 dark:bg-gray-800 rounded-3xl mb-6"></div>
+                 <div className="grid grid-cols-2 gap-3">
+                     <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                     <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                     <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                     <div className="h-44 bg-gray-200 dark:bg-gray-800 rounded-3xl"></div>
+                 </div>
              </div>
-        ) : !activeSubject ? (
-            /* --- VIEW 1: SUBJECTS GRID (ICONS) --- */
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        ) : (
+            <div className="w-full">
                 
                 {/* PROMOTIONAL BANNER */}
-                {!searchTerm && (
-                    <div className="relative w-full h-32 rounded-3xl bg-gradient-to-r from-indigo-600 to-purple-600 overflow-hidden shadow-lg p-5 flex flex-col justify-center animate-in fade-in slide-in-from-top-4 duration-500 mb-6 shrink-0">
-                        <div className="absolute right-0 top-0 h-full w-1/2 opacity-10">
-                            <span className="material-symbols-outlined text-[140px] text-white -mr-8 -mt-4">handyman</span>
-                        </div>
-                        <h3 className="text-white font-black text-lg relative z-10 leading-tight">Ajude a cuidar<br/>da nossa cidade</h3>
-                        <p className="text-indigo-100 text-[10px] mt-1 relative z-10 max-w-[65%] font-medium opacity-90">
-                            Viu algo errado? Abra uma ocorrência de iluminação, limpeza ou obras e acompanhe.
-                        </p>
+                <div className={`relative w-full h-32 rounded-3xl bg-gradient-to-r from-indigo-600 to-purple-600 overflow-hidden shadow-lg p-5 flex-col justify-center mb-6 shrink-0 ${!searchTerm && !activeSubject ? 'flex' : 'hidden'}`}>
+                    <div className="absolute right-0 top-0 h-full w-1/2 opacity-10">
+                        <span className="material-symbols-outlined text-[140px] text-white -mr-8 -mt-4">handyman</span>
                     </div>
-                )}
+                    <h3 className="text-white font-black text-lg relative z-10 leading-tight">Ajude a cuidar<br/>da nossa cidade</h3>
+                    <p className="text-indigo-100 text-[10px] mt-1 relative z-10 max-w-[65%] font-medium opacity-90">
+                        Viu algo errado? Abra uma ocorrência de iluminação, limpeza ou obras e acompanhe.
+                    </p>
+                </div>
 
-                {filteredSubjects.length === 0 ? (
-                    <div className="text-center py-10 text-gray-500">
-                        <p>Nenhum assunto encontrado.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                        {filteredSubjects.map(subject => {
-                            const colors = getThemeColors(subject.colorTheme);
-                            const iconIsImg = isUrl(subject.icon);
-                            const count = allServices.filter(s => s.subjectId === subject.id).length;
-                            const secName = getSecretariatName(subject.secretariatId);
-                            const displaySecName = formatSecretariatName(secName);
+                {/* EMPTY STATE SUBJECTS */}
+                <div className={`text-center py-10 text-gray-500 ${filteredSubjects.length === 0 && !activeSubject ? 'block' : 'hidden'}`}>
+                    <p>Nenhum assunto encontrado.</p>
+                </div>
 
-                            return (
-                                <button
-                                    key={subject.id}
-                                    onClick={() => handleSelectSubject(subject)}
-                                    className={`relative flex flex-col items-start p-5 rounded-3xl bg-white dark:bg-card-dark border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group min-h-[170px] justify-between overflow-hidden`}
-                                >
-                                    {/* Top Row: Icon and Badge */}
-                                    <div className="flex w-full justify-between items-start mb-3">
-                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${colors.bg} ${colors.text} shrink-0 overflow-hidden transition-transform group-hover:scale-105 shadow-inner`}>
-                                            {iconIsImg ? (
-                                                <img src={subject.icon} alt="icon" className="w-full h-full object-contain p-2" />
-                                            ) : (
-                                                <span className="material-symbols-outlined text-[32px]">{subject.icon}</span>
-                                            )}
-                                        </div>
-                                        <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${colors.bg} ${colors.text} flex items-center gap-1`}>
-                                            {count} Opções
-                                        </span>
-                                    </div>
-                                    
-                                    {/* Content */}
-                                    <div className="w-full flex flex-col gap-1 mb-2">
-                                        <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight line-clamp-2">{subject.title}</h3>
-                                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{subject.description}</p>
-                                    </div>
+                {/* SUBJECTS GRID */}
+                <div className={`grid-cols-2 gap-3 ${!activeSubject && filteredSubjects.length > 0 ? 'grid' : 'hidden'}`}>
+                    {subjects.map(subject => {
+                        const isDisplayed = filteredSubjects.some(s => s.id === subject.id);
+                        const colors = getThemeColors(subject.colorTheme);
+                        const iconIsImg = isUrl(subject.icon);
+                        const count = allServices.filter(s => s.subjectId === subject.id).length;
+                        const secName = getSecretariatName(subject.secretariatId);
+                        const displaySecName = formatSecretariatName(secName);
 
-                                    {/* Footer: Secretariat Name */}
-                                    <div className="w-full pt-3 mt-auto border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                                        <span className="material-symbols-outlined text-[14px] text-slate-400">business</span>
-                                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 truncate w-full text-left" title={secName}>
-                                            {displaySecName}
-                                        </span>
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        ) : (
-            /* --- VIEW 2: SERVICES LIST (FILTERED BY SUBJECT) --- */
-            <div className="animate-in slide-in-from-right-8 duration-300">
-                 {filteredServices.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center pt-20 text-center">
-                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                            <span className="material-symbols-outlined text-3xl text-gray-400">folder_off</span>
-                        </div>
-                        <h3 className="text-gray-900 dark:text-white font-bold text-lg">Sem serviços disponíveis</h3>
-                        <p className="text-gray-500 text-sm mt-1 max-w-[250px]">Nenhum tipo de ocorrência cadastrado para este assunto ainda.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-3">
-                        {filteredServices.map(service => {
-                            const colors = getThemeColors(service.colorTheme);
-                            const isImg = isUrl(service.icon);
-                            return (
-                                <button 
-                                    key={service.id}
-                                    onClick={() => onSelectService(service)}
-                                    className={`flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card-dark border ${colors.border} shadow-sm active:scale-[0.98] transition-all group text-left`}
-                                >
-                                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${colors.bg} ${isImg ? '' : colors.text} overflow-hidden`}>
-                                        {isImg ? (
-                                            <img src={service.icon} alt="Icon" className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform" />
+                        return (
+                            <button
+                                key={subject.id}
+                                onClick={() => handleSelectSubject(subject)}
+                                className={`relative flex-col items-start p-4 rounded-3xl bg-white dark:bg-card-dark border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left group min-h-[170px] justify-between overflow-hidden ${isDisplayed ? 'flex' : 'hidden'}`}
+                            >
+                                {/* Top Row: Icon and Badge */}
+                                <div className="flex w-full justify-between items-start mb-3">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${colors.bg} ${colors.text} shrink-0 overflow-hidden transition-transform group-hover:scale-105 shadow-inner`}>
+                                        {iconIsImg ? (
+                                            <img src={subject.icon} alt="icon" className="w-full h-full object-contain p-2" />
                                         ) : (
-                                            <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">{service.icon}</span>
+                                            <span className="material-symbols-outlined text-[32px]">{subject.icon}</span>
                                         )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight mb-1">{service.title}</h3>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{service.description}</p>
-                                    </div>
-                                    <span className="material-symbols-outlined text-gray-300 dark:text-gray-600">chevron_right</span>
-                                </button>
-                            );
-                        })}
+                                    <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${colors.bg} ${colors.text} flex items-center gap-1`}>
+                                        {count} Opções
+                                    </span>
+                                </div>
+                                
+                                {/* Content */}
+                                <div className="w-full flex-1 flex flex-col gap-1 mb-2">
+                                    <h3 className="text-sm font-black text-slate-900 dark:text-white leading-tight line-clamp-2">{subject.title}</h3>
+                                    <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 line-clamp-3 leading-tight mt-0.5">{subject.description}</p>
+                                </div>
+
+                                {/* Footer: Secretariat Name */}
+                                <div className="w-full pt-2 mt-auto border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                                    <span className="material-symbols-outlined text-[12px] text-slate-400">business</span>
+                                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 truncate w-full text-left" title={secName}>
+                                        {displaySecName}
+                                    </span>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* EMPTY STATE SERVICES */}
+                <div className={`flex-col items-center justify-center pt-20 text-center ${activeSubject && filteredServices.length === 0 ? 'flex' : 'hidden'}`}>
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                        <span className="material-symbols-outlined text-3xl text-gray-400">folder_off</span>
                     </div>
-                )}
+                    <h3 className="text-gray-900 dark:text-white font-bold text-lg">Sem serviços disponíveis</h3>
+                    <p className="text-gray-500 text-sm mt-1 max-w-[250px]">Nenhum tipo de ocorrência cadastrado para este assunto ainda.</p>
+                </div>
+
+                {/* SERVICES LIST */}
+                <div className={`grid-cols-1 gap-3 ${activeSubject && filteredServices.length > 0 ? 'grid' : 'hidden'}`}>
+                    {allServices.map(service => {
+                        const isDisplayed = filteredServices.some(s => s.id === service.id);
+                        const colors = getThemeColors(service.colorTheme);
+                        const isImg = isUrl(service.icon);
+                        return (
+                            <button 
+                                key={service.id}
+                                onClick={() => onSelectService(service)}
+                                className={`items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card-dark border ${colors.border} shadow-sm active:scale-[0.98] transition-all group text-left ${isDisplayed ? 'flex' : 'hidden'}`}
+                            >
+                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${colors.bg} ${isImg ? '' : colors.text} overflow-hidden`}>
+                                    {isImg ? (
+                                        <img src={service.icon} alt="Icon" className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform" />
+                                    ) : (
+                                        <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">{service.icon}</span>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight mb-1">{service.title}</h3>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-snug">{service.description}</p>
+                                </div>
+                                <span className="material-symbols-outlined text-gray-300 dark:text-gray-600">chevron_right</span>
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
         )}
       </main>
