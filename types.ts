@@ -61,10 +61,21 @@ export interface NotificationItem {
   userId: string;
   title: string;
   message: string;
-  type: 'update' | 'alert' | 'info' | 'success';
+  type: 'update' | 'alert' | 'info' | 'success' | 'event';
   read: boolean;
+  readBy?: string[];
   date: any;
   relatedRequestId?: string;
+}
+
+export interface GlobalNotification {
+  id?: string;
+  title: string;
+  message: string;
+  type: 'info' | 'alert' | 'event';
+  date: any;
+  active: boolean;
+  targetAudience?: 'all' | 'verified';
 }
 
 export interface UserItem {

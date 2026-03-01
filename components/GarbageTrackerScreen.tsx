@@ -14,12 +14,18 @@ interface GarbageTrackerScreenProps {
   onBack: () => void;
 }
 
+const DEFAULT_ROUTE = [
+    { lat: -11.8069, lng: -39.3856 },
+    { lat: -11.8062, lng: -39.3865 }
+];
+
 const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) => {
   const mapContainerId = "garbage-map-container";
   const mapRef = useRef<any>(null);
   const markersRef = useRef<{ [key: string]: any }>({}); 
   const userMarkerRef = useRef<any>(null);
   const routePolylineRef = useRef<any>(null);
+  const hasFittedBounds = useRef(false);
   
   const [trucks, setTrucks] = useState<GarbageTruck[]>([]);
   const [userPos, setUserPos] = useState<{lat: number, lng: number} | null>(null);
@@ -29,18 +35,17 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
   
   // --- 1. Load Route from Admin Config ---
   useEffect(() => {
-      const fetchRoute = async () => {
-          try {
-              const docRef = doc(db, "app_config", "garbage_route");
-              const docSnap = await getDoc(docRef);
-              if (docSnap.exists() && docSnap.data().points) {
-                  setRoutePoints(docSnap.data().points);
-              }
-          } catch (e) {
-              console.error("Error loading route", e);
+      const unsub = onSnapshot(doc(db, "app_config", "garbage_route"), (docSnap) => {
+          if (docSnap.exists() && docSnap.data().points) {
+              setRoutePoints(docSnap.data().points);
+          } else {
+              setRoutePoints(DEFAULT_ROUTE);
           }
-      };
-      fetchRoute();
+      }, (err) => {
+          console.error("Error loading route", err);
+          setRoutePoints(DEFAULT_ROUTE);
+      });
+      return () => unsub();
   }, []);
 
   // --- 2. Real-time Database Listener ---
@@ -116,8 +121,19 @@ const GarbageTrackerScreen: React.FC<GarbageTrackerScreenProps> = ({ onBack }) =
                   lineCap: 'round',
                   lineJoin: 'round'
               }).addTo(map);
-              // Fit bounds to show route initially
-              map.fitBounds(routePolylineRef.current.getBounds(), { padding: [50, 50] });
+          }
+
+          // Fit bounds to show route if not already done
+          if (!hasFittedBounds.current && routePolylineRef.current) {
+              try {
+                  const bounds = routePolylineRef.current.getBounds();
+                  if (bounds.isValid()) {
+                      map.fitBounds(bounds, { padding: [50, 50] });
+                      hasFittedBounds.current = true;
+                  }
+              } catch (e) {
+                  console.warn("Could not fit bounds yet", e);
+              }
           }
       }
 

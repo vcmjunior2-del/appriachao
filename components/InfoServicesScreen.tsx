@@ -4,6 +4,7 @@ import { Screen, InfoServiceDefinition } from '../types';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAlert } from '../contexts/AlertContext';
+import { Browser } from '@capacitor/browser';
 
 interface InfoServicesScreenProps {
   onBack: () => void;
@@ -25,10 +26,6 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
   // --- Folder Navigation State ---
   const [currentParentId, setCurrentParentId] = useState<string | null>(null);
   const [folderHistory, setFolderHistory] = useState<InfoServiceDefinition[]>([]);
-
-  // --- In-App Navigation State ---
-  const [activeService, setActiveService] = useState<InfoServiceDefinition | null>(null);
-  const [iframeLoading, setIframeLoading] = useState(true);
 
   // --- Helper: Color Mapping with Gradients ---
   const getColorClasses = (theme: string) => {
@@ -87,10 +84,6 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
       return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-      if (activeService) setIframeLoading(true);
-  }, [activeService]);
-
   // --- Logic: Navigation ---
   
   const handleBackNavigation = () => {
@@ -107,7 +100,7 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
       }
   };
 
-  const handleItemClick = (service: InfoServiceDefinition) => {
+  const handleItemClick = async (service: InfoServiceDefinition) => {
       if (service.isFolder) {
           // Enter Folder
           setCurrentParentId(service.id!);
@@ -117,8 +110,17 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
           // Special Action for Tracker
           onNavigateToTracker();
       } else if (service.actionType === 'LINK_WEB' && service.actionConfig) {
-          // Open Web Browser
-          setActiveService(service);
+          // Open Web Browser using Capacitor Browser
+          let url = service.actionConfig.trim();
+          if (!url.startsWith('http')) url = `https://${url}`;
+          
+          try {
+              await Browser.open({ url });
+          } catch (error) {
+              console.error("Error opening browser:", error);
+              // Fallback if Browser plugin fails (e.g., in some web environments)
+              window.open(url, '_blank');
+          }
       } else {
           showAlert({ message: "Serviço em fase de integração.", type: 'info' });
       }
@@ -147,47 +149,6 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
       : 'Serviços Online';
 
   const isRoot = !currentParentId && !searchTerm;
-
-  // --- RENDER: INTERNAL BROWSER (IFRAME) ---
-  if (activeService) {
-      let url = activeService.actionConfig.trim();
-      if (!url.startsWith('http')) url = `https://${url}`;
-      const domain = url.replace('https://', '').replace('http://', '').split('/')[0];
-
-      return (
-          <div className="fixed inset-0 z-[100] flex flex-col bg-background-light dark:bg-background-dark animate-in slide-in-from-bottom duration-300">
-              <header className="p-3 pb-2 flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-card-dark shadow-sm z-10">
-                  <button onClick={() => setActiveService(null)} className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-slate-800 dark:text-white">
-                      <span className="material-symbols-outlined">close</span>
-                  </button>
-                  <div className="flex-1 flex flex-col justify-center bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-1.5 border border-transparent focus-within:border-primary/50 transition-colors">
-                      <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[12px] text-green-600 dark:text-green-400">lock</span>
-                        <h2 className="text-xs font-bold text-slate-900 dark:text-white truncate">{activeService.title}</h2>
-                      </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate font-mono">{domain}</p>
-                  </div>
-                  <button onClick={() => window.open(url, '_blank')} className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-primary" title="Abrir no Navegador">
-                      <span className="material-symbols-outlined text-[20px]">open_in_new</span>
-                  </button>
-              </header>
-              <main className="flex-1 relative bg-white w-full h-full overflow-hidden">
-                  {iframeLoading && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-slate-900 z-0">
-                          <span className="material-symbols-outlined animate-spin text-primary text-3xl mb-2">progress_activity</span>
-                          <p className="text-xs text-slate-500 font-medium">Carregando portal...</p>
-                      </div>
-                  )}
-                  <iframe src={url} title={activeService.title} className="w-full h-full border-none relative z-10" onLoad={() => setIframeLoading(false)} sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" />
-                  {!iframeLoading && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-yellow-50 dark:bg-yellow-900/20 p-2 text-center border-t border-yellow-200 dark:border-yellow-900/50 z-20">
-                          <p className="text-[10px] text-yellow-700 dark:text-yellow-400">Se não carregar, use o ícone <span className="material-symbols-outlined text-[10px] align-middle">open_in_new</span> acima.</p>
-                      </div>
-                  )}
-              </main>
-          </div>
-      );
-  }
 
   // --- RENDER: LIST VIEW ---
   return (

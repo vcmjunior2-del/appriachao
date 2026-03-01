@@ -12,6 +12,7 @@ import AdminSentiment from './admin/AdminSentiment';
 import AdminCityGuide from './admin/AdminCityGuide';
 import AdminFleet from './admin/AdminFleet'; 
 import AdminNews from './admin/AdminNews'; // Novo Componente
+import AdminNotifications from './admin/AdminNotifications'; // Novo Componente
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -210,9 +211,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
             {currentView === 'NEWS_MANAGER' && <AdminNews />}
 
-            {currentView === 'NOTIFICATIONS' && (
-                <div className="flex items-center justify-center h-64 text-slate-500">Funcionalidade em desenvolvimento.</div>
-            )}
+            {currentView === 'NOTIFICATIONS' && <AdminNotifications />}
 
         </div>
       </main>

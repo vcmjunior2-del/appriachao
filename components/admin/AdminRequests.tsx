@@ -65,7 +65,7 @@ const AdminRequests: React.FC<AdminRequestsProps> = ({ initialView }) => {
     // --- Data Fetching & Real-time Listeners ---
     useEffect(() => {
         // Guard: Strictly allow only the Admin Email to fetch all requests.
-        if (!currentUser || currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br') return;
+        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
 
         const unsubReqs = onSnapshot(
             query(collection(db, "requests"), orderBy('date', 'desc')), 

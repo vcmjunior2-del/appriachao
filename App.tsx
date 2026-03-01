@@ -41,7 +41,8 @@ const AppContent: React.FC = () => {
 
   // State for the Splash Screen
   const [showSplash, setShowSplash] = useState(true);
-  const isFirstLoad = useRef(true);
+  const isFirstLoad1 = useRef(true);
+  const isFirstLoad2 = useRef(true);
 
   // --- Initial Load Effect ---
   useEffect(() => {
@@ -85,34 +86,36 @@ const AppContent: React.FC = () => {
       if (!currentUser) return;
 
       // 2. Listen to Notifications Collection
-      const q = query(
-          collection(db, "notifications"),
-          where("userId", "in", [currentUser.uid, "all"])
-      );
+      const q1 = query(collection(db, "notifications"), where("userId", "==", currentUser.uid));
+      const q2 = query(collection(db, "notifications"), where("userId", "==", "all"));
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-          // Skip the first snapshot (initial load of existing data)
-          if (isFirstLoad.current) {
-              isFirstLoad.current = false;
+      const handleSnapshot = (snapshot: any, isFirstRef: React.MutableRefObject<boolean>) => {
+          if (isFirstRef.current) {
+              isFirstRef.current = false;
               return;
           }
 
-          snapshot.docChanges().forEach((change) => {
+          snapshot.docChanges().forEach((change: any) => {
               if (change.type === "added") {
                   const notifData = change.doc.data();
-                  // Check if browser notifications are allowed
                   if (Notification.permission === 'granted') {
                       new Notification(notifData.title || "Nova Atualização", {
                           body: notifData.message || "Você tem uma nova notificação da prefeitura.",
-                          icon: '/icon-192.png', // Fallback icon path (browser default if not found)
+                          icon: '/icon-192.png',
                           tag: 'riachao-app'
                       });
                   }
               }
           });
-      });
+      };
 
-      return () => unsubscribe();
+      const unsub1 = onSnapshot(q1, (snap) => handleSnapshot(snap, isFirstLoad1));
+      const unsub2 = onSnapshot(q2, (snap) => handleSnapshot(snap, isFirstLoad2));
+
+      return () => {
+          unsub1();
+          unsub2();
+      };
   }, [currentUser]);
 
 
@@ -156,6 +159,34 @@ const AppContent: React.FC = () => {
       setCurrentScreen(Screen.REQUEST_TRACKING);
   }
 
+  // Refs for persistent screen containers to manage scroll position
+  const screenRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const scrollToTop = (screen: Screen) => {
+      const scroll = () => {
+          const ref = screenRefs.current[screen];
+          if (ref) {
+              ref.scrollTo({ top: 0, behavior: 'instant' });
+              ref.scrollTop = 0;
+              
+              // If it's the emergency screen, the actual scrollable element is now the first child
+              if (screen === Screen.EMERGENCY && ref.firstElementChild) {
+                  ref.firstElementChild.scrollTo({ top: 0, behavior: 'instant' });
+                  ref.firstElementChild.scrollTop = 0;
+              }
+          }
+      };
+
+      // Attempt immediately
+      scroll();
+
+      // Attempt after a short delay (for state updates)
+      setTimeout(scroll, 50);
+
+      // Attempt after transition (approx 300ms)
+      setTimeout(scroll, 300);
+  };
+
   const handleNavigate = (screen: Screen, params?: any) => {
       // Logic: Determine where to go back to if accessing Requests or Alerts
       if (screen === Screen.REQUESTS || screen === Screen.ALERTS) {
@@ -169,7 +200,17 @@ const AppContent: React.FC = () => {
       if (screen === Screen.CITY_GUIDE && params) {
           setCityGuideCategory(params);
       }
+
       setCurrentScreen(screen);
+  };
+
+  const handleBottomNavNavigate = (screen: Screen) => {
+      // If clicking the active tab, scroll to top
+      if (currentScreen === screen) {
+          scrollToTop(screen);
+      } else {
+          handleNavigate(screen);
+      }
   };
 
   if (loading) {
@@ -182,43 +223,72 @@ const AppContent: React.FC = () => {
 
   const getPersistentScreenClass = (screen: Screen) => {
       const isActive = currentScreen === screen;
-      return `absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden custom-scrollbar pb-24 bg-background-light dark:bg-background-dark transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isActive ? 'opacity-100 z-10 scale-100 translate-y-0' : 'opacity-0 z-0 pointer-events-none scale-[0.95] translate-y-4'}`;
+      // Remove overflow-y-auto for EMERGENCY so it can handle its own scrolling if needed,
+      // or keep it but ensure we target the right element.
+      const overflowClass = screen === Screen.EMERGENCY ? 'overflow-hidden' : 'overflow-y-auto';
+      
+      return `absolute inset-0 w-full h-full ${overflowClass} overflow-x-hidden custom-scrollbar pb-24 bg-background-light dark:bg-background-dark transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isActive ? 'opacity-100 z-10 scale-100 translate-y-0' : 'opacity-0 z-0 pointer-events-none scale-[0.95] translate-y-4'}`;
   }
 
   const renderPersistentScreens = () => {
       if (!currentUser) return null;
       return (
         <>
-            <div className={getPersistentScreenClass(Screen.HOME)}>
+            <div 
+                ref={(el) => { if (el) screenRefs.current[Screen.HOME] = el; }}
+                className={getPersistentScreenClass(Screen.HOME)}
+            >
                 <HomeScreen onNavigate={handleNavigate} />
             </div>
-            <div className={getPersistentScreenClass(Screen.INFO_SERVICES)}>
+            <div 
+                ref={(el) => { if (el) screenRefs.current[Screen.INFO_SERVICES] = el; }}
+                className={getPersistentScreenClass(Screen.INFO_SERVICES)}
+            >
                 <InfoServicesScreen 
-                  onBack={() => setCurrentScreen(Screen.HOME)} 
-                  onNavigateToTracker={() => setCurrentScreen(Screen.GARBAGE_TRACKER)}
+                  onBack={() => handleNavigate(Screen.HOME)} 
+                  onNavigateToTracker={() => handleNavigate(Screen.GARBAGE_TRACKER)}
                 />
             </div>
-            <div className={getPersistentScreenClass(Screen.SERVICES)}>
+            <div 
+                ref={(el) => { if (el) screenRefs.current[Screen.SERVICES] = el; }}
+                className={getPersistentScreenClass(Screen.SERVICES)}
+            >
                 <ServicesScreen 
-                  onBack={() => setCurrentScreen(Screen.HOME)} 
+                  onBack={() => handleNavigate(Screen.HOME)} 
                   onSelectService={handleSelectService}
                   activeSecretariat={activeSecretariat}
                   onSelectSecretariat={setActiveSecretariat}
                />
             </div>
-            <div className={getPersistentScreenClass(Screen.REQUESTS)}>
+            <div 
+                ref={(el) => { if (el) screenRefs.current[Screen.REQUESTS] = el; }}
+                className={getPersistentScreenClass(Screen.REQUESTS)}
+            >
                 <RequestsScreen 
-                  onBack={() => setCurrentScreen(returnScreen)} 
+                  onBack={() => handleNavigate(returnScreen)} 
                   onSelectRequest={handleSelectRequest} 
                />
             </div>
-            <div className={getPersistentScreenClass(Screen.ALERTS)}>
-                <AlertsScreen onBack={() => setCurrentScreen(returnScreen)} />
+            <div 
+                ref={(el) => { if (el) screenRefs.current[Screen.ALERTS] = el; }}
+                className={getPersistentScreenClass(Screen.ALERTS)}
+            >
+                <AlertsScreen onBack={() => handleNavigate(returnScreen)} />
             </div>
-            <div className={getPersistentScreenClass(Screen.EMERGENCY)}>
-                <EmergencyScreen onBack={() => setCurrentScreen(Screen.HOME)} />
+            <div 
+                id="emergency-screen-scroll-container"
+                ref={(el) => { if (el) screenRefs.current[Screen.EMERGENCY] = el; }}
+                className={getPersistentScreenClass(Screen.EMERGENCY)}
+            >
+                <EmergencyScreen 
+                    onBack={() => handleNavigate(Screen.HOME)} 
+                    isActive={currentScreen === Screen.EMERGENCY}
+                />
             </div>
-            <div className={getPersistentScreenClass(Screen.PROFILE)}>
+            <div 
+                ref={(el) => { if (el) screenRefs.current[Screen.PROFILE] = el; }}
+                className={getPersistentScreenClass(Screen.PROFILE)}
+            >
                 <ProfileScreen 
                   onLogout={() => setCurrentScreen(Screen.WELCOME)} 
                   onNavigate={handleNavigate} 
@@ -328,7 +398,7 @@ const AppContent: React.FC = () => {
                 {showBottomNav && (
                     <DashboardBottomNav 
                         currentScreen={currentScreen} 
-                        onNavigate={setCurrentScreen} 
+                        onNavigate={handleBottomNavNavigate} 
                     />
                 )}
             </div>

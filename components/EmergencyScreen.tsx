@@ -3,12 +3,14 @@ import { useAlert } from '../contexts/AlertContext';
 
 interface EmergencyScreenProps {
   onBack: () => void;
+  isActive?: boolean;
 }
 
-const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
+const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack, isActive }) => {
   const [isPressing, setIsPressing] = useState(false);
   const [currentAddress, setCurrentAddress] = useState('Obtendo localização...');
   const { showAlert } = useAlert();
+  const rootRef = React.useRef<HTMLDivElement>(null);
   
   // Logic: Fetch GPS and Address on Mount
   useEffect(() => {
@@ -38,18 +40,26 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
                     
                     if (data && data.locality) {
                         let formatted = '';
-                        if (data.principalSubdivision) {
-                            formatted = `${data.locality}, ${data.principalSubdivision}`;
+                        
+                        // Try to get street name (often in 'localityInfo.informative' or similar, but BigDataCloud free tier 
+                        // sometimes puts it in 'locality' or 'principalSubdivision' depending on the region).
+                        // A more reliable way with BigDataCloud free tier is to check for 'locality' (neighborhood/street level)
+                        // and 'city' (city level).
+                        
+                        const street = data.localityInfo?.informative?.find((info: any) => info.order === 6 || info.order === 7)?.name || '';
+                        const neighborhood = data.locality || '';
+                        const city = data.city || data.principalSubdivision || '';
+
+                        const parts = [];
+                        if (street && street !== neighborhood) parts.push(street);
+                        if (neighborhood) parts.push(neighborhood);
+                        if (city && city !== neighborhood) parts.push(city);
+
+                        if (parts.length > 0) {
+                            formatted = parts.join(', ');
                         } else {
-                            formatted = data.locality;
+                            formatted = 'Localização Identificada';
                         }
-                        
-                        if (data.city && data.city !== data.locality) {
-                            formatted += ` - ${data.city}`;
-                        }
-                        
-                        // Fallback if specific fields are empty
-                        if (!formatted) formatted = 'Localização Identificada';
                         
                         setCurrentAddress(formatted);
                     } else {
@@ -90,7 +100,7 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
   }, [isPressing, currentAddress, showAlert]);
 
   return (
-    <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden bg-background-light dark:bg-background-dark font-display">
+    <div ref={rootRef} className="relative flex h-full min-h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-background-light dark:bg-background-dark font-display custom-scrollbar pb-24">
       {/* Inline Style for Pulse Animation */}
       <style>{`
         .pulse-ring {
@@ -113,7 +123,7 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
       `}</style>
 
       {/* Header */}
-      <header className="flex items-center bg-white dark:bg-card-dark p-4 pb-2 justify-between sticky top-0 z-50 shadow-sm border-b border-gray-200 dark:border-gray-800">
+      <header id="emergency-header" className="flex items-center bg-white dark:bg-card-dark p-4 pb-2 justify-between sticky top-0 z-50 shadow-sm border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center gap-3">
           <button 
             onClick={onBack}
@@ -147,9 +157,10 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
             <button 
                 onMouseDown={() => setIsPressing(true)}
                 onMouseUp={() => setIsPressing(false)}
-                onTouchStart={() => setIsPressing(true)}
-                onTouchEnd={() => setIsPressing(false)}
-                className={`relative z-10 flex flex-col items-center justify-center w-44 h-44 rounded-full bg-gradient-to-br from-red-500 to-red-700 shadow-xl transition-transform duration-200 border-[6px] border-white dark:border-background-dark group ring-4 ring-red-500/10 ${isPressing ? 'scale-95' : 'active:scale-95'}`}
+                onMouseLeave={() => setIsPressing(false)}
+                onTouchStart={(e) => { e.preventDefault(); setIsPressing(true); }}
+                onTouchEnd={(e) => { e.preventDefault(); setIsPressing(false); }}
+                className={`relative z-10 flex flex-col items-center justify-center w-44 h-44 rounded-full bg-gradient-to-br from-red-500 to-red-700 shadow-xl transition-transform duration-200 border-[6px] border-white dark:border-background-dark group ring-4 ring-red-500/10 select-none touch-none [-webkit-touch-callout:none] ${isPressing ? 'scale-95' : 'active:scale-95'}`}
             >
               <span className="material-symbols-outlined text-white text-[56px] mb-1 drop-shadow-md">sos</span>
               <span className="text-white text-xs font-bold uppercase tracking-[0.2em] drop-shadow-sm">{isPressing ? 'Enviando...' : 'Segure 3s'}</span>
@@ -159,6 +170,40 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
           <p className="text-gray-500 dark:text-gray-400 text-sm text-center max-w-[280px] leading-relaxed">
             Ao ativar, sua localização será enviada imediatamente para as autoridades e contatos de emergência.
           </p>
+        </section>
+
+        {/* Report Types List */}
+        <section className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-gray-900 dark:text-white tracking-tight text-lg font-bold leading-tight text-left flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[22px]">campaign</span>
+              Reportar Ocorrência
+            </h3>
+          </div>
+          <div className="flex flex-col gap-3">
+            {[
+                { title: 'Enchente ou Alagamento', desc: 'Reportar inundações em vias públicas', icon: 'flood', color: 'blue' },
+                { title: 'Deslizamento de Terra', desc: 'Reportar risco em encostas', icon: 'landslide', color: 'amber' },
+                { title: 'Incêndio em Vegetação', desc: 'Reportar queimadas ilegais', icon: 'forest', color: 'orange' },
+                { title: 'Outras Ocorrências', desc: 'Acidentes, árvores caídas, etc.', icon: 'report_problem', color: 'gray' },
+            ].map((item) => (
+                <button 
+                    key={item.title}
+                    className="flex items-center gap-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-card-dark p-3 pr-4 shadow-sm active:bg-gray-50 dark:active:bg-gray-800 hover:border-gray-300 transition-colors group"
+                >
+                    <div className={`relative w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-${item.color}-50 dark:bg-${item.color}-900/10 border border-${item.color}-100 dark:border-${item.color}-900/30`}>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <span className={`material-symbols-outlined text-${item.color}-600 dark:text-${item.color}-400 text-[28px]`}>{item.icon}</span>
+                        </div>
+                    </div>
+                    <div className="flex-1 text-left">
+                        <h4 className={`text-gray-900 dark:text-white font-bold text-base group-hover:text-${item.color}-600 dark:group-hover:text-${item.color}-400 transition-colors`}>{item.title}</h4>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{item.desc}</p>
+                    </div>
+                    <span className="material-symbols-outlined text-gray-400 dark:text-gray-600 group-hover:translate-x-1 transition-transform">chevron_right</span>
+                </button>
+            ))}
+          </div>
         </section>
 
         {/* Emergency Contacts Grid */}
@@ -197,40 +242,6 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack }) => {
                         </div>
                     </div>
                 </a>
-            ))}
-          </div>
-        </section>
-
-        {/* Report Types List */}
-        <section className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-gray-900 dark:text-white tracking-tight text-lg font-bold leading-tight text-left flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[22px]">campaign</span>
-              Reportar Ocorrência
-            </h3>
-          </div>
-          <div className="flex flex-col gap-3">
-            {[
-                { title: 'Enchente ou Alagamento', desc: 'Reportar inundações em vias públicas', icon: 'flood', color: 'blue' },
-                { title: 'Deslizamento de Terra', desc: 'Reportar risco em encostas', icon: 'landslide', color: 'amber' },
-                { title: 'Incêndio em Vegetação', desc: 'Reportar queimadas ilegais', icon: 'forest', color: 'orange' },
-                { title: 'Outras Ocorrências', desc: 'Acidentes, árvores caídas, etc.', icon: 'report_problem', color: 'gray' },
-            ].map((item) => (
-                <button 
-                    key={item.title}
-                    className="flex items-center gap-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-card-dark p-3 pr-4 shadow-sm active:bg-gray-50 dark:active:bg-gray-800 hover:border-gray-300 transition-colors group"
-                >
-                    <div className={`relative w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-${item.color}-50 dark:bg-${item.color}-900/10 border border-${item.color}-100 dark:border-${item.color}-900/30`}>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <span className={`material-symbols-outlined text-${item.color}-600 dark:text-${item.color}-400 text-[28px]`}>{item.icon}</span>
-                        </div>
-                    </div>
-                    <div className="flex-1 text-left">
-                        <h4 className={`text-gray-900 dark:text-white font-bold text-base group-hover:text-${item.color}-600 dark:group-hover:text-${item.color}-400 transition-colors`}>{item.title}</h4>
-                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{item.desc}</p>
-                    </div>
-                    <span className="material-symbols-outlined text-gray-400 dark:text-gray-600 group-hover:translate-x-1 transition-transform">chevron_right</span>
-                </button>
             ))}
           </div>
         </section>

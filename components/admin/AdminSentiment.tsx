@@ -14,7 +14,7 @@ const AdminSentiment: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br') return;
+        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
 
         // Fetch Logs (Last 100 for performance in demo)
         const qLogs = query(collection(db, "sentiment_logs"), orderBy("date", "desc"), limit(200));

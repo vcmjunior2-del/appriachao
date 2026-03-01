@@ -26,7 +26,7 @@ const AdminCityGuide: React.FC = () => {
     const categories = ['Úteis', 'Saúde', 'Educação', 'Hospedagem', 'Gastronomia', 'Comércio', 'Lazer'];
 
     useEffect(() => {
-        if (!currentUser || currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br') return;
+        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
         
         const unsub = onSnapshot(collection(db, "city_places"), (snap) => {
             setPlaces(snap.docs.map(d => ({ id: d.id, ...d.data() } as CityPlace)));

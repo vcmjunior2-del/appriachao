@@ -13,7 +13,7 @@ const AdminUsers: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br') return;
+        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
 
         const unsub = onSnapshot(collection(db, "users"), (snap) => {
             setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() } as UserItem)));

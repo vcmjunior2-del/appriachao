@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, writeBatch, doc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationItem } from '../types';
@@ -20,13 +20,14 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
         if (!currentUser) return;
 
         // Query simples sem orderBy para evitar erro de índice composto no Firestore
-        const q = query(
-            collection(db, "notifications"),
-            where("userId", "in", [currentUser.uid, "all"])
-        );
+        const q1 = query(collection(db, "notifications"), where("userId", "==", currentUser.uid));
+        const q2 = query(collection(db, "notifications"), where("userId", "==", "all"));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NotificationItem));
+        let notifs1: NotificationItem[] = [];
+        let notifs2: NotificationItem[] = [];
+
+        const updateNotifs = () => {
+            const data = [...notifs1, ...notifs2];
             
             // Ordenação feita no cliente (descendente por data)
             data.sort((a, b) => {
@@ -42,15 +43,40 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
 
             setNotifications(data);
             setLoading(false);
+        };
+
+        const unsub1 = onSnapshot(q1, (snapshot) => {
+            notifs1 = snapshot.docs.map(doc => {
+                const docData = doc.data() as NotificationItem;
+                return { id: doc.id, ...docData };
+            });
+            updateNotifs();
         }, (error) => {
-            console.error("Error fetching notifications:", error);
+            console.error("Error fetching notifications 1:", error);
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        const unsub2 = onSnapshot(q2, (snapshot) => {
+            notifs2 = snapshot.docs.map(doc => {
+                const docData = doc.data() as NotificationItem;
+                // Compute read status for global notifications
+                docData.read = docData.readBy?.includes(currentUser.uid) || false;
+                return { id: doc.id, ...docData };
+            });
+            updateNotifs();
+        }, (error) => {
+            console.error("Error fetching notifications 2:", error);
+            setLoading(false);
+        });
+
+        return () => {
+            unsub1();
+            unsub2();
+        };
     }, [currentUser]);
 
     const handleMarkAllRead = async () => {
+        if (!currentUser) return;
         // Optimistic UI Update
         setNotifications(prev => prev.map(n => ({...n, read: true})));
 
@@ -60,7 +86,11 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
 
         unread.forEach(n => {
             const ref = doc(db, "notifications", n.id);
-            batch.update(ref, { read: true });
+            if (n.userId === 'all') {
+                batch.update(ref, { readBy: arrayUnion(currentUser.uid) });
+            } else {
+                batch.update(ref, { read: true });
+            }
         });
 
         try {
@@ -71,13 +101,21 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
     };
 
     const handleMarkAsRead = async (id: string) => {
+        if (!currentUser) return;
+        const notification = notifications.find(n => n.id === id);
+        if (!notification) return;
+
         // Optimistic UI Update: Mark as read locally immediately
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
 
         try {
             const batch = writeBatch(db);
             const ref = doc(db, "notifications", id);
-            batch.update(ref, { read: true });
+            if (notification.userId === 'all') {
+                batch.update(ref, { readBy: arrayUnion(currentUser.uid) });
+            } else {
+                batch.update(ref, { read: true });
+            }
             await batch.commit();
         } catch (e) { console.error(e); }
     };
@@ -121,6 +159,7 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
             case 'alert': return { icon: 'warning', bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400' };
             case 'info': return { icon: 'info', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' };
             case 'update': return { icon: 'update', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400' };
+            case 'event': return { icon: 'event', bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400' };
             default: return { icon: 'notifications', bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500' };
         }
     };

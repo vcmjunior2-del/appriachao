@@ -16,7 +16,7 @@ const AdminSecretariats: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br') return;
+        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
 
         const unsubSec = onSnapshot(collection(db, "secretariats"), 
             s => setSecretariats(s.docs.map(d => ({id: d.id, ...d.data()} as Secretariat))),

@@ -148,14 +148,32 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     );
 
     // 6. Query Unread Notifications
-    const unsubNotifs = onSnapshot(query(collection(db, "notifications"), where("userId", "in", [currentUser.uid, "all"])), 
-        (snapshot) => setUnreadNotifications(snapshot.docs.filter(doc => !doc.data().read).length),
+    let unread1 = 0;
+    let unread2 = 0;
+    const updateUnread = () => setUnreadNotifications(unread1 + unread2);
+
+    const unsubNotifs1 = onSnapshot(query(collection(db, "notifications"), where("userId", "==", currentUser.uid)), 
+        (snapshot) => {
+            unread1 = snapshot.docs.filter(doc => !doc.data().read).length;
+            updateUnread();
+        },
+        (error) => console.warn("Notifications Listener Error")
+    );
+    const unsubNotifs2 = onSnapshot(query(collection(db, "notifications"), where("userId", "==", "all")), 
+        (snapshot) => {
+            unread2 = snapshot.docs.filter(doc => {
+                const data = doc.data();
+                return !(data.readBy?.includes(currentUser.uid));
+            }).length;
+            updateUnread();
+        },
         (error) => console.warn("Notifications Listener Error")
     );
 
     return () => {
         unsubRequests();
-        unsubNotifs();
+        unsubNotifs1();
+        unsubNotifs2();
         unsubAreas();
         unsubNews();
     };
@@ -361,23 +379,37 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
                 <div className="flex justify-between items-start mb-6 relative z-10"><div><h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">Análise da População</h3><p className="text-xs text-slate-500 dark:text-gray-400">Sentimento geral hoje</p></div><div className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-300 ${currentStatus.bg} ${currentStatus.color}`}>{currentStatus.label}</div></div>
                 <div className="relative z-10 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="flex-1 relative h-4">
+                        <div className="flex-1 relative h-12 flex items-center">
                             <input type="range" min="0" max="100" value={sentimentValue} onChange={(e) => {
                                 userInteractedRef.current = true;
                                 setSentimentValue(Number(e.target.value));
-                            }} className="w-full h-3 rounded-full appearance-none cursor-pointer absolute top-0 z-20 opacity-0" />
-                            <div className="absolute top-0 left-0 w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden z-0"></div>
-                            <div className="absolute top-0 left-0 h-3 rounded-full transition-all duration-100 z-10 bg-gradient-to-r from-green-400 to-green-600" style={{ width: `${sentimentValue}%` }}></div>
-                            <div className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-2 border-green-500 rounded-full shadow-md z-10 pointer-events-none transition-all duration-100" style={{ left: `calc(${sentimentValue}% - 12px)` }}></div>
+                            }} className="w-full h-full appearance-none cursor-pointer absolute inset-0 z-20 opacity-0 touch-pan-y" />
+                            <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden z-0"></div>
+                            <div className="absolute top-1/2 -translate-y-1/2 left-0 h-4 rounded-full transition-all duration-100 z-10 bg-gradient-to-r from-green-400 to-green-600" style={{ width: `${sentimentValue}%` }}></div>
+                            <div className="absolute top-1/2 -translate-y-1/2 w-8 h-8 bg-white border-[3px] border-green-500 rounded-full shadow-lg z-10 pointer-events-none transition-all duration-100 flex items-center justify-center" style={{ left: `calc(${sentimentValue}% - 16px)` }}>
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            </div>
                         </div>
-                        <span className={`text-2xl font-black transition-colors duration-300 ${currentStatus.color}`}>{sentimentValue}%</span>
+                        <span className={`text-2xl font-black transition-colors duration-300 w-16 text-right ${currentStatus.color}`}>{sentimentValue}%</span>
                     </div>
-                    <div className="flex justify-between px-1 mt-4 relative">{[10, 30, 50, 70, 90].map((val, idx) => {
+                    <div className="flex justify-between px-2 mt-2 relative">{[10, 30, 50, 70, 90].map((val, idx) => {
                             const isActive = Math.ceil(sentimentValue / 20) === (idx + 1) || (sentimentValue === 0 && idx === 0);
                             const emojis = ['sentiment_very_dissatisfied', 'sentiment_dissatisfied', 'sentiment_neutral', 'sentiment_satisfied', 'sentiment_very_satisfied'];
                             const colors = ['text-red-300', 'text-orange-300', 'text-yellow-300', 'text-lime-300', 'text-green-300'];
                             const activeColors = ['text-red-500', 'text-orange-500', 'text-yellow-500', 'text-lime-500', 'text-green-500'];
-                            return <span key={idx} className={`material-symbols-outlined transition-all duration-300 text-3xl ${isActive ? `${activeColors[idx]} scale-125` : `${colors[idx]} opacity-40 scale-90`}`} style={{ fontVariationSettings: "'FILL' 1" }}>{emojis[idx]}</span>
+                            return (
+                                <button 
+                                    key={idx} 
+                                    onClick={() => {
+                                        userInteractedRef.current = true;
+                                        setSentimentValue(val);
+                                    }}
+                                    className={`material-symbols-outlined transition-all duration-300 text-3xl p-2 -m-2 rounded-full active:scale-95 ${isActive ? `${activeColors[idx]} scale-125` : `${colors[idx]} opacity-40 scale-90 hover:opacity-70`}`} 
+                                    style={{ fontVariationSettings: "'FILL' 1" }}
+                                >
+                                    {emojis[idx]}
+                                </button>
+                            );
                         })}</div>
                 </div>
                 <div className="h-px bg-slate-100 dark:bg-slate-800 mb-4"></div>

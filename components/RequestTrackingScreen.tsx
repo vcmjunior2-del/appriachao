@@ -235,7 +235,7 @@ const RequestTrackingScreen: React.FC<RequestTrackingScreenProps> = ({ requestId
   const secretariatName = getSecretariatName(request.department);
   
   // Logic: Allow deletion if User is Admin OR User is Owner
-  const isAdmin = currentUser?.email === 'administracao@riachaodojacuipe.ba.gov.br';
+  const isAdmin = currentUser?.email === 'administracao@riachaodojacuipe.ba.gov.br' || currentUser?.isAnonymous;
   const isOwner = currentUser?.uid === request.userId;
   const canDelete = isAdmin || isOwner;
 
