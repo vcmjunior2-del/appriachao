@@ -261,8 +261,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       <header className="sticky top-0 z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="bg-white dark:bg-slate-800 rounded-xl h-10 w-10 flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain scale-110" /> : <span className="material-symbols-outlined text-primary">account_balance</span>}
+            <div className="bg-white dark:bg-slate-800 rounded-xl h-10 w-10 flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden relative">
+                {logoUrl ? (
+                    <>
+                        <img 
+                            src={logoUrl} 
+                            alt="Logo" 
+                            className="w-full h-full object-contain scale-110" 
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'block';
+                            }}
+                        />
+                        <span className="material-symbols-outlined text-primary hidden" style={{ display: 'none' }}>account_balance</span>
+                    </>
+                ) : (
+                    <span className="material-symbols-outlined text-primary">account_balance</span>
+                )}
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Olá,</span>

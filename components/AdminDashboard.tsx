@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useConfig } from '../contexts/ConfigContext';
 import AdminOverview from './admin/AdminOverview';
 import AdminUsers from './admin/AdminUsers';
 import AdminRequests from './admin/AdminRequests';
@@ -21,6 +22,7 @@ interface AdminDashboardProps {
 type AdminView = 'DASHBOARD' | 'USERS' | 'REQ_DASHBOARD' | 'REQ_LIST' | 'REQ_MAP' | 'REQ_KANBAN' | 'SECRETARIATS' | 'SUBJECTS_CONFIG' | 'SERVICES_CONFIG' | 'INFO_OVERVIEW' | 'INFO_CATALOG' | 'INFO_NEW_FOLDER' | 'INFO_NEW_DOC' | 'NOTIFICATIONS' | 'CONFIG' | 'SENTIMENT' | 'CITY_GUIDE' | 'FLEET_MANAGER' | 'NEWS_MANAGER';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
+  const { config } = useConfig();
   const [currentView, setCurrentView] = useState<AdminView>('DASHBOARD');
   
   // Sidebar Expand States
@@ -53,8 +55,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       {/* Sidebar */}
       <aside className="flex flex-col w-72 bg-white dark:bg-[#111a22] border-r border-slate-200 dark:border-slate-800 h-full flex-shrink-0 transition-all duration-300">
         <div className="p-6 flex items-center gap-3">
-            <div className="bg-primary/10 rounded-lg p-2 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-3xl">account_balance</span>
+            <div className="bg-primary/10 rounded-lg h-10 w-10 flex items-center justify-center overflow-hidden relative">
+                {config?.logoUrl ? (
+                    <>
+                        <img 
+                            src={config.logoUrl} 
+                            alt="Logo" 
+                            className="w-full h-full object-contain p-1" 
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'block';
+                            }}
+                        />
+                        <span className="material-symbols-outlined text-primary text-2xl hidden" style={{ display: 'none' }}>account_balance</span>
+                    </>
+                ) : (
+                    <span className="material-symbols-outlined text-primary text-2xl">account_balance</span>
+                )}
             </div>
             <div>
                 <h1 className="text-lg font-bold leading-tight tracking-tight text-slate-900 dark:text-white">Admin Prefeitura</h1>

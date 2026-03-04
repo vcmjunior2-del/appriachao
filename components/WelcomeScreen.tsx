@@ -31,9 +31,22 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAd
 
         {/* Branding Overlay */}
         <div className="absolute top-16 left-0 w-full flex flex-col items-center justify-center z-10 animate-in fade-in slide-in-from-top-4 duration-700">
-             <div className="h-24 w-24 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-2xl mb-4 overflow-hidden">
+             <div className="h-24 w-24 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-2xl mb-4 overflow-hidden relative">
                  {logoUrl ? (
-                     <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+                     <>
+                         <img 
+                             src={logoUrl} 
+                             alt="Logo" 
+                             className="w-full h-full object-contain p-2" 
+                             referrerPolicy="no-referrer"
+                             onError={(e) => {
+                                 e.currentTarget.style.display = 'none';
+                                 const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                 if (fallback) fallback.style.display = 'block';
+                             }}
+                         />
+                         <span className="material-symbols-outlined text-[48px] drop-shadow-md hidden" style={{ display: 'none' }}>account_balance</span>
+                     </>
                  ) : (
                      <span className="material-symbols-outlined text-[48px] drop-shadow-md">account_balance</span>
                  )}
