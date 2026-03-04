@@ -240,17 +240,24 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
             
             {/* Header & Title */}
             <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
-                <div>
-                    <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-1">
-                        {internalView === 'OVERVIEW' ? 'Portal de Serviços' : 
-                         internalView === 'LIST' ? 'Catálogo Completo' : 
-                         formTitle}
-                    </h2>
-                    <p className="text-slate-500 dark:text-slate-400">
-                        {internalView === 'OVERVIEW' ? 'Visão geral do portal do cidadão.' : 
-                         internalView === 'LIST' ? 'Gerencie todos os itens do portal.' : 
-                         formData.isFolder ? 'Crie um grupo para organizar serviços.' : 'Adicione um novo serviço ou link útil.'}
-                    </p>
+                <div className="flex items-center gap-4">
+                    {internalView === 'FORM' && (
+                        <button onClick={() => setInternalView('LIST')} className="size-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0">
+                            <span className="material-symbols-outlined text-slate-600 dark:text-slate-300">arrow_back</span>
+                        </button>
+                    )}
+                    <div>
+                        <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-1">
+                            {internalView === 'OVERVIEW' ? 'Portal de Serviços' : 
+                             internalView === 'LIST' ? 'Catálogo Completo' : 
+                             formTitle}
+                        </h2>
+                        <p className="text-slate-500 dark:text-slate-400">
+                            {internalView === 'OVERVIEW' ? 'Visão geral do portal do cidadão.' : 
+                             internalView === 'LIST' ? 'Gerencie todos os itens do portal.' : 
+                             formData.isFolder ? 'Crie um grupo para organizar serviços.' : 'Adicione um novo serviço ou link útil.'}
+                        </p>
+                    </div>
                 </div>
             </div>
 
