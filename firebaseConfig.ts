@@ -3,6 +3,7 @@
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/analytics";
+import "firebase/compat/messaging"; // Import Messaging
 import { getFirestore } from "firebase/firestore"; // Import Firestore
 import { getStorage } from "firebase/storage"; // Import Storage
 
@@ -23,6 +24,7 @@ const auth = firebase.auth();
 const db = getFirestore(app); // Initialize Firestore
 const storage = getStorage(app); // Initialize Storage
 const analytics = firebase.analytics();
+const messaging = firebase.messaging(); // Initialize Messaging
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
-export { auth, db, googleProvider, storage }; // Export db, googleProvider and storage
+export { auth, db, googleProvider, storage, messaging }; // Export db, googleProvider, storage and messaging

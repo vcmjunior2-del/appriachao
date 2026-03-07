@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.riachao.cidadao',
   appName: 'Riachão Cidadão',
   webDir: 'dist',
-  bundledWebRuntime: false,
   server: {
     androidScheme: 'https'
   }

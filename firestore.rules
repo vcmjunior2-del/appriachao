@@ -25,42 +25,42 @@ service cloud.firestore {
     
     match /app_config/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
     match /secretariats/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
     
     match /service_types/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
     
     match /info_services/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
     
     match /occurrence_subjects/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
     
     match /improvement_areas/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
     
     match /city_places/{document=**} {
       allow read: if true; 
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
     
     match /news/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
     // --- Frota / GPS (CORREÇÃO DE PERMISSÃO) ---
@@ -74,34 +74,30 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Admin lê tudo. Dono lê o seu.
-      allow read: if isAdmin() || isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isAdmin() || isOwner(userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
     }
 
     // --- Solicitações (Requests) ---
 
     match /requests/{requestId} {
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
       
-      // Regra de Leitura:
-      // 1. Admin pode ler qualquer documento ou lista.
-      // 2. Usuário pode ler documento se for dono (resource.data).
-      // A condição isAdmin() vem primeiro para garantir short-circuit em queries de lista do Admin.
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read: if isAuthenticated();
       
-      allow update: if isAdmin();
+      allow update: if isAuthenticated();
       
-      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if isAuthenticated();
     }
 
     // --- Notificações ---
 
     match /notifications/{notificationId} {
       allow read: if isAdmin() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all'));
-      allow create: if isAdmin();
-      allow update: if isAdmin() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all'));
-      allow delete: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
 
     // --- Sentimento ---

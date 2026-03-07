@@ -1,15 +1,15 @@
 
 import React, { useState } from 'react';
-import AdminOverview from './admin/AdminOverview';
-import AdminUsers from './admin/AdminUsers';
-import AdminRequests from './admin/AdminRequests';
-import AdminSecretariats from './admin/AdminSecretariats';
-import AdminServices from './admin/AdminServices';
-import AdminSubjects from './admin/AdminSubjects'; // Novo componente
-import AdminInfoServices from './admin/AdminInfoServices';
-import AdminConfig from './admin/AdminConfig';
-import AdminSentiment from './admin/AdminSentiment'; 
-import AdminCityGuide from './admin/AdminCityGuide';
+import AdminOverview from './AdminOverview';
+import AdminUsers from './AdminUsers';
+import AdminRequests from './AdminRequests';
+import AdminSecretariats from './AdminSecretariats';
+import AdminServices from './AdminServices';
+import AdminSubjects from './AdminSubjects'; // Novo componente
+import AdminInfoServices from './AdminInfoServices';
+import AdminConfig from './AdminConfig';
+import AdminSentiment from './AdminSentiment'; 
+import AdminCityGuide from './AdminCityGuide';
 
 interface AdminDashboardProps {
   onLogout: () => void;

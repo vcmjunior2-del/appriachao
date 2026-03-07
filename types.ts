@@ -165,6 +165,7 @@ export interface SentimentLog {
     userId: string;
     sentiment: number;
     selectedAreas: string[];
+    comment?: string;
     date: any;
 }
 
@@ -196,6 +197,7 @@ export interface NewsItem {
     title: string;
     description: string;
     imageUrl: string;
+    videoUrl?: string;
     tag: string;
     colorTheme: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'orange' | 'gray';
     date: any;

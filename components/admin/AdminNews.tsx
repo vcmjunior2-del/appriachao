@@ -14,7 +14,7 @@ const AdminNews: React.FC = () => {
     
     // Form State
     const defaultForm: NewsItem = {
-        title: '', description: '', imageUrl: '', tag: '', colorTheme: 'blue', date: null, active: true
+        title: '', description: '', imageUrl: '', videoUrl: '', tag: '', colorTheme: 'blue', date: null, active: true
     };
     const [formData, setFormData] = useState<NewsItem>(defaultForm);
     
@@ -22,6 +22,10 @@ const AdminNews: React.FC = () => {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Video Upload
+    const [videoFile, setVideoFile] = useState<File | null>(null);
+    const videoInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         // AUTH GUARD
@@ -38,6 +42,7 @@ const AdminNews: React.FC = () => {
         setFormData(defaultForm);
         setImageFile(null);
         setImagePreview(null);
+        setVideoFile(null);
         setIsEditing(true);
     };
 
@@ -45,6 +50,7 @@ const AdminNews: React.FC = () => {
         setFormData(item);
         setImageFile(null);
         setImagePreview(item.imageUrl || null);
+        setVideoFile(null);
         setIsEditing(true);
     };
 
@@ -70,14 +76,25 @@ const AdminNews: React.FC = () => {
 
             // Upload Image if selected
             if (imageFile) {
-                const storageRef = ref(storage, `news_images/${Date.now()}_${imageFile.name}`);
+                const sanitizedName = imageFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const storageRef = ref(storage, `news_images/${Date.now()}_${sanitizedName}`);
                 await uploadBytes(storageRef, imageFile);
                 finalImageUrl = await getDownloadURL(storageRef);
+            }
+
+            let finalVideoUrl = formData.videoUrl;
+            // Upload Video if selected
+            if (videoFile) {
+                const sanitizedName = videoFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const storageRef = ref(storage, `news_videos/${Date.now()}_${sanitizedName}`);
+                await uploadBytes(storageRef, videoFile);
+                finalVideoUrl = await getDownloadURL(storageRef);
             }
 
             const dataToSave = { 
                 ...formData, 
                 imageUrl: finalImageUrl,
+                videoUrl: finalVideoUrl,
                 date: formData.date || serverTimestamp() // Preserve original date on edit, or new on create
             };
 
@@ -155,6 +172,35 @@ const AdminNews: React.FC = () => {
                                     placeholder="Texto curto que aparece abaixo do título..."
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none resize-none transition-all placeholder:text-slate-400"
                                 ></textarea>
+                            </div>
+                            
+                            {/* Video Upload */}
+                            <div className="bg-white dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-sm">videocam</span> Vídeo (Opcional)
+                                </h3>
+                                <div 
+                                    className="relative w-full h-48 rounded-xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center cursor-pointer overflow-hidden group hover:border-primary/50 transition-colors"
+                                    onClick={() => videoInputRef.current?.click()}
+                                >
+                                    {videoFile ? (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                            <span className="material-symbols-outlined text-4xl mb-2">movie</span>
+                                            <span className="text-xs font-bold uppercase">{videoFile.name}</span>
+                                        </div>
+                                    ) : formData.videoUrl ? (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                            <span className="material-symbols-outlined text-4xl mb-2">movie</span>
+                                            <span className="text-xs font-bold uppercase">Vídeo já carregado</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center text-slate-400">
+                                            <span className="material-symbols-outlined text-4xl mb-2">add_to_photos</span>
+                                            <span className="text-xs font-bold uppercase">Carregar Vídeo</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <input type="file" ref={videoInputRef} onChange={(e) => e.target.files && setVideoFile(e.target.files[0])} className="hidden" accept="video/*" />
                             </div>
                             
                             <div className="grid grid-cols-2 gap-5">

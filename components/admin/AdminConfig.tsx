@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../firebaseConfig';
 import { AppConfig } from '../../types';
 
 const AdminConfig: React.FC = () => {
@@ -15,6 +16,7 @@ const AdminConfig: React.FC = () => {
         maintenanceMode: false
     });
     const [isSavingConfig, setIsSavingConfig] = useState(false);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
     useEffect(() => {
         const unsub = onSnapshot(doc(db, "app_config", "general"), 
@@ -34,6 +36,24 @@ const AdminConfig: React.FC = () => {
         } catch (e) { alert("Erro."); } finally { setIsSavingConfig(false); }
     };
 
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsUploadingLogo(true);
+        try {
+            const storageRef = ref(storage, `logos/${Date.now()}_${file.name}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            setAppConfig(prev => ({ ...prev, logoUrl: downloadURL }));
+        } catch (e) {
+            console.error(e);
+            alert("Erro ao fazer upload da logo.");
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
+
     return (
         <div className="max-w-2xl mx-auto animate-in fade-in duration-500 pb-10">
             <div className="mb-8"><h2 className="text-3xl font-black text-slate-900 dark:text-white">Configurações</h2></div>
@@ -47,8 +67,11 @@ const AdminConfig: React.FC = () => {
                     <input value={appConfig.municipalityName} onChange={(e) => setAppConfig({...appConfig, municipalityName: e.target.value})} placeholder="Nome Prefeitura" className="w-full p-3 rounded-xl border dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
                 </div>
                 <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">URL da Logo do Aplicativo</label>
-                    <input value={appConfig.logoUrl} onChange={(e) => setAppConfig({...appConfig, logoUrl: e.target.value})} placeholder="https://... (URL da imagem)" className="w-full p-3 rounded-xl border dark:bg-slate-800 dark:border-slate-700 dark:text-white font-mono text-sm" />
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Logo do Aplicativo</label>
+                    <div className="flex items-center gap-4">
+                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-blue-700" />
+                        {isUploadingLogo && <span className="text-sm text-slate-500">Enviando...</span>}
+                    </div>
                     {appConfig.logoUrl && (
                         <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center h-24 w-24">
                             <img 
@@ -56,13 +79,7 @@ const AdminConfig: React.FC = () => {
                                 alt="Logo Preview" 
                                 className="max-w-full max-h-full object-contain" 
                                 referrerPolicy="no-referrer"
-                                onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                    if (fallback) fallback.style.display = 'block';
-                                }}
                             />
-                            <span className="material-symbols-outlined text-red-500 hidden" style={{ display: 'none' }} title="Erro ao carregar imagem">broken_image</span>
                         </div>
                     )}
                 </div>

@@ -4,8 +4,10 @@ import { Screen, ServiceTypeDefinition, Secretariat } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ConfigProvider } from './contexts/ConfigContext';
 import { AlertProvider, useAlert } from './contexts/AlertContext';
-import { auth, db } from './firebaseConfig';
-import { collection, query, where, onSnapshot } from 'firebase/firestore'; 
+import { auth, db, messaging } from './firebaseConfig';
+import { collection, query, where, onSnapshot, doc, setDoc } from 'firebase/firestore'; 
+import { getToken } from 'firebase/messaging';
+import { AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import LoginScreen from './components/LoginScreen';
 import RegisterScreen from './components/RegisterScreen';
@@ -78,9 +80,17 @@ const AppContent: React.FC = () => {
   useEffect(() => {
       // 1. Request Permission on App Load/Login
       if (currentUser && 'Notification' in window) {
-          if (Notification.permission === 'default') {
-              Notification.requestPermission();
-          }
+          Notification.requestPermission().then((permission) => {
+              if (permission === 'granted') {
+                  getToken(messaging, { vapidKey: 'BK_nOJx0Rd6fW93o0vZxgDTU2QlT7ZoTzXub6524O_aNeIZP8vtmD8SBOjCYeeuu46xoLtMxx_ZtAv6UGoDMbC4' })
+                      .then((currentToken) => {
+                          if (currentToken) {
+                              setDoc(doc(db, "users", currentUser.uid), { fcmToken: currentToken }, { merge: true });
+                          }
+                      })
+                      .catch((err) => console.error('Error getting token:', err));
+              }
+          });
       }
 
       if (!currentUser) return;
@@ -109,8 +119,8 @@ const AppContent: React.FC = () => {
           });
       };
 
-      const unsub1 = onSnapshot(q1, (snap) => handleSnapshot(snap, isFirstLoad1));
-      const unsub2 = onSnapshot(q2, (snap) => handleSnapshot(snap, isFirstLoad2));
+      const unsub1 = onSnapshot(q1, (snap) => handleSnapshot(snap, isFirstLoad1), (error) => console.warn("Notifications error:", error));
+      const unsub2 = onSnapshot(q2, (snap) => handleSnapshot(snap, isFirstLoad2), (error) => console.warn("Notifications error:", error));
 
       return () => {
           unsub1();
@@ -381,7 +391,9 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="h-[100dvh] bg-gray-100 dark:bg-gray-900 flex justify-center overflow-hidden">
-        {showSplash && <SplashScreen isVisible={showSplash} />}
+        <AnimatePresence>
+            {showSplash && <SplashScreen isVisible={showSplash} />}
+        </AnimatePresence>
 
         {isAdminMode ? (
              <div className="h-full w-full animate-in fade-in duration-500 overflow-y-auto custom-scrollbar bg-[#111a22]">

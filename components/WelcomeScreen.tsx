@@ -1,5 +1,6 @@
 import React from 'react';
 import { useConfig } from '../contexts/ConfigContext';
+import { motion } from 'framer-motion';
 
 interface WelcomeScreenProps {
   onLogin: () => void;
@@ -11,6 +12,22 @@ interface WelcomeScreenProps {
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAdminLogin, onGuestLogin }) => {
   const { config } = useConfig();
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.3
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+  };
+
   // Fallback defaults if config is not loaded yet or empty
   const backgroundUrl = config?.welcomeBackgroundUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuAz15pTge5gcJNUsuzOXCqSFInSQaWTbByWJauicm5UKi1hw9VH6lZ_JRLUvPmCXC1LoWUF8JA4P7bC94TwyCg4Ma3HTPBTnVw4W8mg8hY6T1qS3M284oOaKvV6jYnqsbu9_4NSdCnhIH2HkKpXBP3sIPRx838ZOCcunRqN3th-mrpUja4pAf5mld-kvzR1Fy2f2X9K9hI3WGForbYXz64M4yez1ByzV69Wk27h2TTg2cn7bryDJdfMD-NTABYOPrxUF13Z-9i7YgGE";
   const logoUrl = config?.logoUrl || "";
@@ -18,7 +35,12 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAd
   const appName = config?.appName || "Riachão";
 
   return (
-    <div className="relative flex h-screen w-full flex-col bg-background-light dark:bg-background-dark overflow-hidden">
+    <motion.div 
+        className="relative flex h-screen w-full flex-col bg-background-light dark:bg-background-dark overflow-hidden"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+    >
         {/* Immersive Background Image Area */}
         <div className="absolute top-0 left-0 w-full h-[60%]">
              <div 
@@ -30,7 +52,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAd
         </div>
 
         {/* Branding Overlay */}
-        <div className="absolute top-16 left-0 w-full flex flex-col items-center justify-center z-10 animate-in fade-in slide-in-from-top-4 duration-700">
+        <motion.div variants={itemVariants} className="absolute top-16 left-0 w-full flex flex-col items-center justify-center z-10">
              <div className="h-24 w-24 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-2xl mb-4 overflow-hidden relative">
                  {logoUrl ? (
                      <>
@@ -53,22 +75,22 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAd
              </div>
              <h2 className="text-white/90 font-bold text-xs tracking-[0.2em] uppercase drop-shadow-md mb-1">{municipalityName}</h2>
              <h1 className="text-white font-extrabold text-4xl tracking-tight drop-shadow-lg">{appName}</h1>
-        </div>
+        </motion.div>
 
         {/* Bottom Card content */}
-        <div className="absolute bottom-0 left-0 w-full bg-white dark:bg-card-dark rounded-t-[2.5rem] shadow-[0_-10px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col items-center px-8 pt-10 pb-8 z-20 animate-in slide-in-from-bottom-10 duration-500">
+        <motion.div variants={itemVariants} className="absolute bottom-0 left-0 w-full bg-white dark:bg-card-dark rounded-t-[2.5rem] shadow-[0_-10px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col items-center px-8 pt-10 pb-8 z-20">
             {/* Handle Bar */}
             <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mb-6"></div>
             
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-3 leading-tight">
+            <motion.h3 variants={itemVariants} className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-3 leading-tight">
                 Sua cidade na<br/>palma da mão
-            </h3>
+            </motion.h3>
             
-            <p className="text-center text-slate-500 dark:text-gray-400 text-base mb-6 leading-relaxed max-w-xs">
+            <motion.p variants={itemVariants} className="text-center text-slate-500 dark:text-gray-400 text-base mb-6 leading-relaxed max-w-xs">
                 Acesse serviços, faça solicitações, acompanhe obras e receba alertas da prefeitura em um só lugar.
-            </p>
+            </motion.p>
 
-            <div className="flex flex-col gap-3 w-full">
+            <motion.div variants={itemVariants} className="flex flex-col gap-3 w-full">
                 <button 
                     onClick={onLogin}
                     className="w-full bg-[#135bec] hover:bg-blue-700 text-white font-bold h-14 rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-3 group"
@@ -85,17 +107,18 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAd
                 >
                     Criar Conta
                 </button>
-            </div>
+            </motion.div>
 
-            <button 
+            <motion.button 
+                variants={itemVariants}
                 onClick={onGuestLogin}
                 className="mt-4 text-sm font-semibold text-gray-500 hover:text-primary transition-colors flex items-center gap-1"
             >
                 <span>Continuar sem login</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-            </button>
+            </motion.button>
             
-            <div className="mt-6 flex flex-col items-center gap-2">
+            <motion.div variants={itemVariants} className="mt-6 flex flex-col items-center gap-2">
                 <p className="text-[10px] text-gray-400 text-center leading-normal">
                     Ao continuar, você concorda com nossos <br/>
                     <span className="underline cursor-pointer hover:text-primary">Termos de Uso</span> e <span className="underline cursor-pointer hover:text-primary">Política de Privacidade</span>.
@@ -103,9 +126,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAd
                 <button onClick={onAdminLogin} className="mt-2 text-[10px] font-bold text-gray-400 hover:text-primary uppercase tracking-wider">
                     Acesso Administrativo
                 </button>
-            </div>
-        </div>
-    </div>
+            </motion.div>
+        </motion.div>
+    </motion.div>
   );
 };
 

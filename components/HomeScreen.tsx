@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useConfig } from '../contexts/ConfigContext'; // Import ConfigContext
 import { collection, query, where, onSnapshot, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import NewsModal from './NewsModal';
 
 interface HomeScreenProps {
   onNavigate: (screen: Screen, params?: any) => void;
@@ -31,6 +32,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const [sentimentAreas, setSentimentAreas] = useState<ImprovementArea[]>(cachedImprovementAreas || []);
   const [sentimentValue, setSentimentValue] = useState<number>(50); 
   const [selectedImprovementAreas, setSelectedImprovementAreas] = useState<string[]>([]);
+  const [sentimentComment, setSentimentComment] = useState('');
   const [isSubmittingSentiment, setIsSubmittingSentiment] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -38,6 +40,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   
   // --- News State (Init with Cache) ---
   const [newsItems, setNewsItems] = useState<NewsItem[]>(cachedNews || []);
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
 
   const logoUrl = config?.logoUrl || "";
 
@@ -132,6 +135,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
                 const data = docSnap.data();
                 if (data.sentimentValue !== undefined) setSentimentValue(data.sentimentValue);
                 if (data.selectedAreas) setSelectedImprovementAreas(data.selectedAreas);
+                if (data.comment) setSentimentComment(data.comment);
             }
         } catch (e) {}
         setDataLoaded(true);
@@ -234,6 +238,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
               sentiment: scaleStatus.scaleVal,
               sentimentValue: sentimentValue, 
               selectedAreas: selectedImprovementAreas,
+              comment: sentimentComment,
               date: serverTimestamp() 
           });
           setShowSuccessMessage(true);
@@ -247,14 +252,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
   const currentStatus = getSentimentStatus(sentimentValue);
 
-  // Auto-save effect
-  useEffect(() => {
-      if (!dataLoaded || !currentUser || !userInteractedRef.current) return;
-      const timer = setTimeout(() => {
-          handleSubmitSentiment();
-      }, 1000);
-      return () => clearTimeout(timer);
-  }, [sentimentValue, selectedImprovementAreas, dataLoaded]);
+  // Auto-save effect removed
+  // useEffect(() => {
+  //     if (!dataLoaded || !currentUser || !userInteractedRef.current) return;
+  //     const timer = setTimeout(() => {
+  //         handleSubmitSentiment();
+  //     }, 1000);
+  //     return () => clearTimeout(timer);
+  // }, [sentimentValue, selectedImprovementAreas, sentimentComment, dataLoaded]);
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-24 max-w-md mx-auto bg-background-light dark:bg-background-dark">
@@ -334,16 +339,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
                 <div className="flex gap-1.5">{newsItems.map((_, index) => <div key={index} className={`h-1.5 rounded-full transition-all duration-300 ${index === activeNewsIndex ? 'w-4 bg-primary' : 'w-1.5 bg-gray-300 dark:bg-gray-700'}`}></div>)}</div>
             </div>
             <div ref={newsScrollRef} onScroll={handleScroll} className="flex w-full overflow-x-auto snap-x snap-mandatory no-scrollbar">{newsItems.map((news) => (
-                <div key={news.id} className="snap-center shrink-0 w-full px-4">
+                <div key={news.id} className="snap-center shrink-0 w-full px-4" onClick={() => setSelectedNews(news)}>
                     <div className="relative w-full h-48 rounded-2xl bg-white dark:bg-card-dark shadow-md border border-gray-100 dark:border-gray-800 overflow-hidden group cursor-pointer">
                         <div className="absolute top-3 left-3 z-10"><span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide shadow-sm ${getTagColorClass(news.colorTheme)}`}>{news.tag}</span></div>
-                        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${news.imageUrl}")` }}><div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div></div>
+                        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${news.imageUrl}")` }}>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                            {news.videoUrl && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-white/80 text-6xl">play_circle</span>
+                                </div>
+                            )}
+                        </div>
                         <div className="absolute bottom-0 left-0 w-full p-4"><h4 className="font-bold text-white text-xl leading-tight mb-1 drop-shadow-md line-clamp-2">{news.title}</h4><p className="text-gray-200 text-sm line-clamp-1 mb-2 opacity-90">{news.description}</p><div className="flex items-center gap-2 text-gray-300 text-xs font-medium"><span className="material-symbols-outlined text-[14px]">schedule</span><span>{formatTimeAgo(news.date)}</span></div></div>
                     </div>
                 </div>))}
             </div>
             </section>
         )}
+
+        <NewsModal news={selectedNews} onClose={() => setSelectedNews(null)} />
 
         <section className="px-4 grid grid-cols-2 gap-3 animate-in slide-in-from-bottom-4 duration-500">
             <div onClick={() => onNavigate(Screen.INFO_SERVICES)} className="relative overflow-hidden rounded-3xl bg-[#135bec] dark:bg-[#1e40af] p-4 text-white shadow-lg shadow-blue-500/20 cursor-pointer active:scale-95 transition-transform group min-h-[112px] flex flex-col justify-between">
@@ -436,10 +450,39 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
                             <button key={area.id} onClick={() => toggleArea(area.label)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${selectedImprovementAreas.includes(area.label) ? 'bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 hover:border-primary/30'}`}>{selectedImprovementAreas.includes(area.label) && <span className="material-symbols-outlined text-[10px]">check</span>}{area.label}</button>
                         ))}</div>
                     
-                    <div className="flex items-center justify-between h-8">
-                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic transition-all duration-300">
-                            {isSubmittingSentiment ? 'Salvando alterações...' : 'As alterações são salvas automaticamente'}
-                        </span>
+                    <div className="mb-4">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">
+                            Tem algo mais a dizer? Escreva abaixo suas sugestões, elogios ou críticas detalhadas para ajudar a gestão municipal.
+                        </p>
+                        <textarea
+                            value={sentimentComment}
+                            onChange={(e) => {
+                                userInteractedRef.current = true;
+                                setSentimentComment(e.target.value);
+                            }}
+                            placeholder="Descreva aqui sua sugestão ou reclamação..."
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none resize-none h-24"
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-end">
+                        <button 
+                            onClick={handleSubmitSentiment}
+                            disabled={isSubmittingSentiment}
+                            className="bg-primary text-white font-bold py-2 px-6 rounded-xl shadow-md active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                            {isSubmittingSentiment ? (
+                                <>
+                                    <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                    Enviando...
+                                </>
+                            ) : (
+                                <>
+                                    <span>Enviar Avaliação</span>
+                                    <span className="material-symbols-outlined text-sm">send</span>
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>

@@ -124,25 +124,42 @@ const AdminSentiment: React.FC = () => {
 
                     {/* Recent Feedbacks */}
                     <div className="lg:col-span-3 bg-white dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Últimas Interações</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                            {logs.slice(0, 8).map(log => {
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Últimas Interações e Comentários</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {logs.slice(0, 10).map(log => {
                                 const logMood = getEmojiForAvg(log.sentiment);
                                 return (
-                                    <div key={log.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className={`material-symbols-outlined text-2xl ${logMood.color}`} style={{ fontVariationSettings: "'FILL' 1" }}>{logMood.icon}</span>
-                                            <span className="text-[10px] text-slate-400">{log.date?.toDate ? log.date.toDate().toLocaleDateString() : 'Hoje'}</span>
+                                    <div key={log.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex flex-col gap-3">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`material-symbols-outlined text-3xl ${logMood.color}`} style={{ fontVariationSettings: "'FILL' 1" }}>{logMood.icon}</span>
+                                                <div>
+                                                    <div className="text-xs font-bold text-slate-500 uppercase">Sentimento</div>
+                                                    <div className="font-bold text-slate-900 dark:text-white">{log.sentiment}/5</div>
+                                                </div>
+                                            </div>
+                                            <span className="text-[10px] text-slate-400 font-mono bg-white dark:bg-slate-900 px-2 py-1 rounded-full border border-slate-100 dark:border-slate-800">
+                                                {log.date?.toDate ? log.date.toDate().toLocaleDateString() + ' ' + log.date.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Hoje'}
+                                            </span>
                                         </div>
-                                        <div className="flex flex-wrap gap-1">
-                                            {log.selectedAreas && log.selectedAreas.length > 0 ? (
-                                                log.selectedAreas.map(a => (
-                                                    <span key={a} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{a}</span>
-                                                ))
-                                            ) : (
-                                                <span className="text-[10px] text-slate-400 italic">Sem observações</span>
-                                            )}
-                                        </div>
+                                        
+                                        {log.selectedAreas && log.selectedAreas.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {log.selectedAreas.map(a => (
+                                                    <span key={a} className="text-[10px] font-bold px-2 py-1 rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">{a}</span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {log.comment && (
+                                            <div className="mt-1 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                <p className="text-xs text-slate-600 dark:text-slate-300 italic">"{log.comment}"</p>
+                                            </div>
+                                        )}
+                                        
+                                        {!log.comment && (!log.selectedAreas || log.selectedAreas.length === 0) && (
+                                            <span className="text-[10px] text-slate-400 italic">Sem observações adicionais</span>
+                                        )}
                                     </div>
                                 )
                             })}

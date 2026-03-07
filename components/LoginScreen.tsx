@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebaseConfig';
+import { motion } from 'framer-motion';
 
 interface LoginScreenProps {
   onBack: () => void;
@@ -14,6 +15,22 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +134,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark p-6 overflow-y-auto no-scrollbar">
+    <motion.div 
+        className="flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark p-6 overflow-y-auto no-scrollbar"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+    >
       <header className="flex items-center justify-between mb-6">
         <button 
           onClick={onBack}
@@ -128,23 +150,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
       </header>
 
       <main className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
-        <div className="mb-6 text-center">
+        <motion.div variants={itemVariants} className="mb-6 text-center">
             <div className="h-16 w-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center mb-4 text-primary">
                 <span className="material-symbols-outlined text-4xl">lock</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Bem-vindo de volta</h1>
             <p className="text-gray-500 dark:text-gray-400">Escolha uma forma de acesso.</p>
-        </div>
+        </motion.div>
 
         {error && (
-            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm text-center font-medium">
+            <motion.div variants={itemVariants} className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm text-center font-medium">
                 {error}
-            </div>
+            </motion.div>
         )}
 
         <div className="flex flex-col gap-4">
             {/* Google Login */}
-            <button 
+            <motion.button 
+                variants={itemVariants}
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={loading}
@@ -152,16 +175,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
             >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                 <span>Entrar com Google</span>
-            </button>
+            </motion.button>
 
-            <div className="relative flex py-2 items-center">
+            <motion.div variants={itemVariants} className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
                 <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-bold">Ou via E-mail</span>
                 <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
-            </div>
+            </motion.div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <div>
+                <motion.div variants={itemVariants}>
                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-1">E-mail</label>
                     <input 
                         type="email" 
@@ -171,8 +194,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
                         className="w-full bg-white dark:bg-card-dark text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                         placeholder="seu@email.com"
                     />
-                </div>
-                <div>
+                </motion.div>
+                <motion.div variants={itemVariants}>
                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-1">Senha</label>
                     <input 
                         type="password" 
@@ -182,18 +205,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
                         className="w-full bg-white dark:bg-card-dark text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                         placeholder="••••••••"
                     />
-                </div>
+                </motion.div>
                 
-                <div className="flex justify-between items-center">
+                <motion.div variants={itemVariants} className="flex justify-between items-center">
                     <button type="button" onClick={() => { setEmail('demo@riachao.gov.br'); setPassword('123456'); }} className="text-xs font-medium text-gray-400 hover:text-gray-600 uppercase tracking-wide">
                         Usar Demo
                     </button>
                     <button type="button" className="text-sm font-semibold text-primary hover:text-blue-700 dark:hover:text-blue-400">
                         Esqueceu a senha?
                     </button>
-                </div>
+                </motion.div>
 
-                <button 
+                <motion.button 
+                    variants={itemVariants}
                     type="submit" 
                     disabled={loading}
                     className="mt-2 w-full bg-primary hover:bg-blue-700 text-white font-bold h-12 rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -203,11 +227,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
                     ) : (
                         "Entrar com E-mail"
                     )}
-                </button>
+                </motion.button>
             </form>
             
             {/* Anonymous Login */}
-            <button 
+            <motion.button 
+                variants={itemVariants}
                 type="button"
                 onClick={handleAnonymousLogin}
                 disabled={loading}
@@ -215,19 +240,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
             >
                 <span className="material-symbols-outlined">person_off</span>
                 <span>Continuar como Convidado</span>
-            </button>
+            </motion.button>
         </div>
 
-        <div className="mt-8 text-center">
+        <motion.div variants={itemVariants} className="mt-8 text-center">
             <p className="text-gray-600 dark:text-gray-400">
                 Não tem uma conta?{' '}
                 <button onClick={onRegister} className="text-primary font-bold hover:underline">
                     Cadastre-se
                 </button>
             </p>
-        </div>
+        </motion.div>
       </main>
-    </div>
+    </motion.div>
   );
 };
 
