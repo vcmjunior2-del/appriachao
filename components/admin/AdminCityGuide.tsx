@@ -4,17 +4,23 @@ import { collection, onSnapshot, doc, deleteDoc, setDoc, addDoc } from 'firebase
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
-import { CityPlace } from '../../types';
+import { CityPlace, CityPlaceSubCategory } from '../../types';
 
 const AdminCityGuide: React.FC = () => {
     const { currentUser } = useAuth();
     const [places, setPlaces] = useState<CityPlace[]>([]);
+    const [subCategories, setSubCategories] = useState<CityPlaceSubCategory[]>([]);
     const [isEditing, setIsEditing] = useState(false);
+    const [isManagingSubCats, setIsManagingSubCats] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    
+    // SubCategory Form
+    const [newSubCatName, setNewSubCatName] = useState('');
+    const [newSubCatCategory, setNewSubCatCategory] = useState<CityPlace['category']>('Lazer');
     
     // Form State
     const defaultForm: CityPlace = {
-        name: '', category: 'Úteis', description: '', phone: '', address: '', image: '', mapLink: ''
+        name: '', category: 'Úteis', subCategoryId: '', description: '', phone: '', address: '', image: '', mapLink: ''
     };
     const [formData, setFormData] = useState<CityPlace>(defaultForm);
     
@@ -23,16 +29,43 @@ const AdminCityGuide: React.FC = () => {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const categories = ['Úteis', 'Saúde', 'Educação', 'Hospedagem', 'Gastronomia', 'Comércio', 'Lazer'];
+    const categories = ['Úteis', 'Saúde', 'Educação', 'Hospedagem', 'Gastronomia', 'Comércio', 'Lazer', 'Religião'];
 
     useEffect(() => {
         if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
         
-        const unsub = onSnapshot(collection(db, "city_places"), (snap) => {
+        const unsubPlaces = onSnapshot(collection(db, "city_places"), (snap) => {
             setPlaces(snap.docs.map(d => ({ id: d.id, ...d.data() } as CityPlace)));
         }, (error) => console.log("AdminCityGuide restricted"));
-        return () => unsub();
+
+        const unsubSubCats = onSnapshot(collection(db, "city_place_subcategories"), (snap) => {
+            setSubCategories(snap.docs.map(d => ({ id: d.id, ...d.data() } as CityPlaceSubCategory)));
+        }, (error) => console.warn("AdminCityGuide SubCats restricted:", error));
+
+        return () => {
+            unsubPlaces();
+            unsubSubCats();
+        };
     }, [currentUser]);
+
+    const handleAddSubCat = async () => {
+        if (!newSubCatName) return;
+        try {
+            await addDoc(collection(db, "city_place_subcategories"), {
+                name: newSubCatName,
+                category: newSubCatCategory
+            });
+            setNewSubCatName('');
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleDeleteSubCat = async (id: string) => {
+        if (confirm("Excluir esta pasta? Locais vinculados a ela continuarão existindo mas sem pasta.")) {
+            await deleteDoc(doc(db, "city_place_subcategories", id));
+        }
+    };
 
     const handleNew = () => {
         setFormData(defaultForm);
@@ -137,6 +170,21 @@ const AdminCityGuide: React.FC = () => {
                         </div>
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Pasta / Subcategoria (Opcional)</label>
+                        <select 
+                            value={formData.subCategoryId || ''} 
+                            onChange={e => setFormData({...formData, subCategoryId: e.target.value})} 
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">Nenhuma (Local Solto)</option>
+                            {subCategories.filter(sc => sc.category === formData.category).map(sc => (
+                                <option key={sc.id} value={sc.id}>{sc.name}</option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1">Selecione uma pasta pré-cadastrada para agrupar este local.</p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Telefone</label>
@@ -164,10 +212,75 @@ const AdminCityGuide: React.FC = () => {
                     <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1">Guia da Cidade</h2>
                     <p className="text-slate-500 dark:text-slate-400">Cadastre telefones úteis e locais de interesse público.</p>
                 </div>
-                <button onClick={handleNew} className="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg flex items-center gap-2">
-                    <span className="material-symbols-outlined">add_location_alt</span> Novo Local
-                </button>
+                <div className="flex gap-3">
+                    <button onClick={() => setIsManagingSubCats(true)} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all">
+                        <span className="material-symbols-outlined">folder_managed</span> Gerenciar Pastas
+                    </button>
+                    <button onClick={handleNew} className="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined">add_location_alt</span> Novo Local
+                    </button>
+                </div>
             </div>
+
+            {/* SubCategory Management Modal */}
+            {isManagingSubCats && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-[#1e293b] w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                            <h3 className="text-xl font-black text-slate-900 dark:text-white">Gerenciar Pastas</h3>
+                            <button onClick={() => setIsManagingSubCats(false)} className="size-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-3">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Nova Pasta</label>
+                                <div className="flex flex-col gap-2">
+                                    <select 
+                                        value={newSubCatCategory} 
+                                        onChange={e => setNewSubCatCategory(e.target.value as any)}
+                                        className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white outline-none text-sm"
+                                    >
+                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            value={newSubCatName} 
+                                            onChange={e => setNewSubCatName(e.target.value)}
+                                            placeholder="Nome da pasta..."
+                                            className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white outline-none text-sm"
+                                        />
+                                        <button 
+                                            onClick={handleAddSubCat}
+                                            className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-blue-600 transition-colors"
+                                        >
+                                            Adicionar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                                {subCategories.length === 0 ? (
+                                    <p className="text-center py-4 text-slate-400 text-sm italic">Nenhuma pasta cadastrada.</p>
+                                ) : (
+                                    subCategories.sort((a,b) => a.category.localeCompare(b.category)).map(sc => (
+                                        <div key={sc.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                                            <div>
+                                                <p className="font-bold text-slate-900 dark:text-white text-sm">{sc.name}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">{sc.category}</p>
+                                            </div>
+                                            <button onClick={() => handleDeleteSubCat(sc.id!)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-lg transition-colors">
+                                                <span className="material-symbols-outlined text-lg">delete</span>
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                 <table className="w-full text-left border-collapse">
@@ -191,7 +304,14 @@ const AdminCityGuide: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="py-4 px-6">
-                                    <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">{place.category}</span>
+                                    <div className="flex flex-col">
+                                        <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase w-fit">{place.category}</span>
+                                        {place.subCategoryId && (
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase mt-1 ml-1">
+                                                📁 {subCategories.find(sc => sc.id === place.subCategoryId)?.name || 'Pasta não encontrada'}
+                                            </span>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="py-4 px-6 text-sm text-slate-600 dark:text-slate-300">{place.phone || '-'}</td>
                                 <td className="py-4 px-6 text-right">

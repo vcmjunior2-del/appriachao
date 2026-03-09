@@ -2,52 +2,84 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { CityPlace } from '../types';
+import { CityPlace, CityPlaceSubCategory } from '../types';
 
 interface CityGuideScreenProps {
   onBack: () => void;
   initialCategory?: string;
 }
 
-// Cache global variable
+// Cache global variables
 let cachedPlaces: CityPlace[] | null = null;
+let cachedSubCats: CityPlaceSubCategory[] | null = null;
 
 const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCategory }) => {
   const [activeCategory, setActiveCategory] = useState(initialCategory || 'Todos');
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Reset subcategory when category changes
+  useEffect(() => {
+    setActiveSubCategoryId(null);
+  }, [activeCategory]);
+
   // Init with cache
   const [places, setPlaces] = useState<CityPlace[]>(cachedPlaces || []);
+  const [registeredSubCats, setRegisteredSubCats] = useState<CityPlaceSubCategory[]>(cachedSubCats || []);
   
   // CRITICAL: Only show loading if cache is empty. 
-  // If cache exists, we show content instantly while background update happens.
   const [loading, setLoading] = useState(cachedPlaces === null);
 
-  const categories = ['Todos', 'Úteis', 'Saúde', 'Educação', 'Hospedagem', 'Gastronomia', 'Comércio', 'Lazer'];
+  const categories = ['Todos', 'Úteis', 'Saúde', 'Educação', 'Hospedagem', 'Gastronomia', 'Comércio', 'Lazer', 'Religião'];
 
   useEffect(() => {
-    const q = query(collection(db, "city_places"));
-    const unsubscribe = onSnapshot(q, 
+    const qPlaces = query(collection(db, "city_places"));
+    const unsubPlaces = onSnapshot(qPlaces, 
         (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CityPlace));
             setPlaces(data);
-            cachedPlaces = data; // Update cache
-            setLoading(false);
-        },
-        (error) => {
-            console.error("Error fetching city places:", error);
+            cachedPlaces = data;
             setLoading(false);
         }
     );
-    return () => unsubscribe();
+
+    const qSubCats = query(collection(db, "city_place_subcategories"));
+    const unsubSubCats = onSnapshot(qSubCats, 
+        (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CityPlaceSubCategory));
+            setRegisteredSubCats(data);
+            cachedSubCats = data;
+        },
+        (error) => console.warn("CityGuide SubCats restricted:", error)
+    );
+
+    return () => {
+        unsubPlaces();
+        unsubSubCats();
+    };
   }, []);
 
   const filteredPlaces = places.filter(place => {
       const matchesCategory = activeCategory === 'Todos' || place.category === activeCategory;
+      const matchesSubCategory = !activeSubCategoryId || place.subCategoryId === activeSubCategoryId;
+      const subCatName = place.subCategoryId ? registeredSubCats.find(sc => sc.id === place.subCategoryId)?.name : '';
       const matchesSearch = place.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (place.category && place.category.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesCategory && matchesSearch;
+                            (place.category && place.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            (subCatName && subCatName.toLowerCase().includes(searchTerm.toLowerCase()));
+      return matchesCategory && matchesSubCategory && matchesSearch;
   });
+
+  // Get subcategories for the current category that actually have places
+  const subCategoriesToDisplay = activeCategory !== 'Todos' && !activeSubCategoryId && !searchTerm
+    ? registeredSubCats
+        .filter(sc => sc.category === activeCategory)
+        .filter(sc => places.some(p => p.category === activeCategory && p.subCategoryId === sc.id))
+    : [];
+
+  // Places that don't have a subcategory (to show alongside folders)
+  const placesWithoutSubCategory = activeCategory !== 'Todos' && !activeSubCategoryId && !searchTerm
+    ? filteredPlaces.filter(p => !p.subCategoryId)
+    : filteredPlaces;
 
   const getCategoryIcon = (cat: string) => {
       switch(cat) {
@@ -58,6 +90,7 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
           case 'Gastronomia': return 'restaurant';
           case 'Comércio': return 'storefront';
           case 'Lazer': return 'attractions';
+          case 'Religião': return 'church';
           default: return 'place';
       }
   };
@@ -76,14 +109,14 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
        <header className="sticky top-0 z-20 bg-white/95 dark:bg-card-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-colors duration-200">
         <div className="flex items-center p-4 justify-between h-16">
           <button 
-            onClick={onBack}
+            onClick={activeSubCategoryId ? () => setActiveSubCategoryId(null) : onBack}
             className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-slate-200 transition-colors"
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           
           <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">
-            Guia da Cidade
+            {activeSubCategoryId ? (registeredSubCats.find(sc => sc.id === activeSubCategoryId)?.name || 'Pasta') : 'Guia da Cidade'}
           </h1>
           
           <div className="size-10"></div>
@@ -102,21 +135,23 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
                 />
             </div>
             
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {categories.map(cat => (
-                    <button
-                        key={cat}
-                        onClick={() => setActiveCategory(cat)}
-                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                            activeCategory === cat
-                            ? 'bg-primary border-primary text-white shadow-md'
-                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 hover:border-primary/50'
-                        }`}
-                    >
-                        {cat}
-                    </button>
-                ))}
-            </div>
+            {!activeSubCategoryId && (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setActiveCategory(cat)}
+                            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                activeCategory === cat
+                                ? 'bg-primary border-primary text-white shadow-md'
+                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 hover:border-primary/50'
+                            }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
       </header>
 
@@ -125,14 +160,33 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
              <div className="flex flex-col items-center justify-center pt-20 gap-3">
                  <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
              </div>
-        ) : filteredPlaces.length === 0 ? (
+        ) : (subCategoriesToDisplay.length === 0 && placesWithoutSubCategory.length === 0) ? (
             <div className="flex flex-col items-center justify-center pt-20 text-center text-gray-500">
                 <span className="material-symbols-outlined text-4xl mb-2">location_off</span>
                 <p>Nenhum local encontrado.</p>
             </div>
         ) : (
             <div className="grid grid-cols-1 gap-4">
-                {filteredPlaces.map(place => (
+                {/* Folders */}
+                {subCategoriesToDisplay.map(subCat => (
+                    <button 
+                        key={subCat.id}
+                        onClick={() => setActiveSubCategoryId(subCat.id!)}
+                        className="bg-white dark:bg-card-dark rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                    >
+                        <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                            <span className="material-symbols-outlined text-2xl">folder</span>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-base font-bold text-slate-900 dark:text-white">{subCat.name}</h3>
+                            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pasta</p>
+                        </div>
+                        <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+                    </button>
+                ))}
+
+                {/* Places */}
+                {placesWithoutSubCategory.map(place => (
                     <div key={place.id} className="bg-white dark:bg-card-dark rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex gap-4">
                         {/* Image or Icon */}
                         <div className="w-20 h-20 shrink-0 rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center border border-gray-100 dark:border-gray-700">

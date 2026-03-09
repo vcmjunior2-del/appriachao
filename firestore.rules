@@ -53,12 +53,17 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
     
-    match /city_places/{document=**} {
+    match /city_places/{placeId} {
       allow read: if true; 
       allow write: if isAuthenticated();
     }
+
+    match /city_place_subcategories/{subCatId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
     
-    match /news/{document=**} {
+    match /news/{newsId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }

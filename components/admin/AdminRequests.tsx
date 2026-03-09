@@ -124,7 +124,8 @@ const AdminRequests: React.FC<AdminRequestsProps> = ({ initialView }) => {
         );
         
         const unsubSecs = onSnapshot(collection(db, "secretariats"), 
-            (snap) => setSecretariats(snap.docs.map(d => ({ id: d.id, ...d.data() } as Secretariat)))
+            (snap) => setSecretariats(snap.docs.map(d => ({ id: d.id, ...d.data() } as Secretariat))),
+            (error) => console.log("AdminRequests Secretariats restricted")
         );
         
         return () => { unsubReqs(); unsubSecs(); if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current); };

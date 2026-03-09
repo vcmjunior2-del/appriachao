@@ -45,7 +45,7 @@ const AdminFleet: React.FC = () => {
             const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as GarbageTruck));
             setTrucks(data);
             updateMapMarkers(data);
-        });
+        }, (error) => console.warn("AdminFleet Trucks restricted:", error));
 
         // Load Saved Route
         const loadRoute = async () => {

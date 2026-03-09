@@ -10,12 +10,15 @@ import AdminInfoServices from './AdminInfoServices';
 import AdminConfig from './AdminConfig';
 import AdminSentiment from './AdminSentiment'; 
 import AdminCityGuide from './AdminCityGuide';
+import AdminNews from './AdminNews';
+import AdminNotifications from './AdminNotifications';
+import AdminFleet from './AdminFleet';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type AdminView = 'DASHBOARD' | 'USERS' | 'REQ_DASHBOARD' | 'REQ_LIST' | 'REQ_MAP' | 'REQ_KANBAN' | 'SECRETARIATS' | 'SUBJECTS_CONFIG' | 'SERVICES_CONFIG' | 'INFO_SERVICES_CONFIG' | 'NOTIFICATIONS' | 'CONFIG' | 'SENTIMENT' | 'CITY_GUIDE';
+type AdminView = 'DASHBOARD' | 'USERS' | 'REQ_DASHBOARD' | 'REQ_LIST' | 'REQ_MAP' | 'REQ_KANBAN' | 'SECRETARIATS' | 'SUBJECTS_CONFIG' | 'SERVICES_CONFIG' | 'INFO_SERVICES_CONFIG' | 'NOTIFICATIONS' | 'CONFIG' | 'SENTIMENT' | 'CITY_GUIDE' | 'NEWS' | 'FLEET';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [currentView, setCurrentView] = useState<AdminView>('DASHBOARD');
@@ -86,10 +89,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <div className="my-2 border-t border-slate-100 dark:border-slate-800"></div>
             <p className="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Serviços</p>
             <SidebarLink icon="mood" label="Sentimento Popular" view="SENTIMENT" />
+            <SidebarLink icon="campaign" label="Comunicação" view="NOTIFICATIONS" />
 
             <div className="my-2 border-t border-slate-100 dark:border-slate-800"></div>
             <p className="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Cadastros</p>
             <SidebarLink icon="map" label="Guia da Cidade" view="CITY_GUIDE" />
+            <SidebarLink icon="newspaper" label="Notícias e Destaques" view="NEWS" />
+            <SidebarLink icon="local_shipping" label="Frota de Limpeza" view="FLEET" />
             <SidebarLink icon="corporate_fare" label="Secretarias / Órgãos" view="SECRETARIATS" />
             
             {/* Tipos de Ocorrência Menu Expandable */}
@@ -176,9 +182,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
             {currentView === 'CITY_GUIDE' && <AdminCityGuide />}
 
-            {currentView === 'NOTIFICATIONS' && (
-                <div className="flex items-center justify-center h-64 text-slate-500">Funcionalidade em desenvolvimento.</div>
-            )}
+            {currentView === 'NOTIFICATIONS' && <AdminNotifications />}
+            
+            {currentView === 'NEWS' && <AdminNews />}
+            
+            {currentView === 'FLEET' && <AdminFleet />}
 
         </div>
       </main>

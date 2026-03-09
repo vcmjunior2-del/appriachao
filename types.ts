@@ -169,10 +169,17 @@ export interface SentimentLog {
     date: any;
 }
 
+export interface CityPlaceSubCategory {
+    id?: string;
+    name: string;
+    category: 'Úteis' | 'Saúde' | 'Educação' | 'Hospedagem' | 'Gastronomia' | 'Comércio' | 'Lazer' | 'Religião';
+}
+
 export interface CityPlace {
     id?: string;
     name: string;
     category: 'Úteis' | 'Saúde' | 'Educação' | 'Hospedagem' | 'Gastronomia' | 'Comércio' | 'Lazer' | 'Religião';
+    subCategoryId?: string; 
     description?: string;
     phone?: string;
     address?: string;
