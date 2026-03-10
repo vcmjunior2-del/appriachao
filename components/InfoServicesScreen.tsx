@@ -152,7 +152,7 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
 
   // --- RENDER: LIST VIEW ---
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-24 font-display">
+    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-16 font-display">
        
        <div className="bg-white dark:bg-card-dark shadow-sm border-b border-gray-100 dark:border-gray-800 pb-2">
             <div className="px-4 pt-4 pb-2 flex items-center justify-between">

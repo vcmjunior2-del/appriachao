@@ -100,7 +100,7 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack, isActive }) =
   }, [isPressing, currentAddress, showAlert]);
 
   return (
-    <div ref={rootRef} className="relative flex h-full min-h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-background-light dark:bg-background-dark font-display custom-scrollbar pb-24">
+    <div ref={rootRef} className="relative flex h-full min-h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-background-light dark:bg-background-dark font-display custom-scrollbar pb-16">
       {/* Inline Style for Pulse Animation */}
       <style>{`
         .pulse-ring {
@@ -146,7 +146,7 @@ const EmergencyScreen: React.FC<EmergencyScreenProps> = ({ onBack, isActive }) =
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col px-4 pb-24 pt-4">
+      <main className="flex-1 flex flex-col px-4 pb-16 pt-4">
         {/* SOS Section */}
         <section className="flex flex-col items-center justify-center py-6 mb-2 rounded-2xl bg-gradient-to-b from-transparent to-red-50/50 dark:to-red-900/10">
           <h1 className="text-gray-900 dark:text-white tracking-tight text-[22px] font-extrabold leading-tight text-center mb-6">

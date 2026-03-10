@@ -237,7 +237,7 @@ const AppContent: React.FC = () => {
       // or keep it but ensure we target the right element.
       const overflowClass = screen === Screen.EMERGENCY ? 'overflow-hidden' : 'overflow-y-auto';
       
-      return `absolute inset-0 w-full h-full ${overflowClass} overflow-x-hidden custom-scrollbar pb-24 bg-background-light dark:bg-background-dark transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isActive ? 'opacity-100 z-10 scale-100 translate-y-0' : 'opacity-0 z-0 pointer-events-none scale-[0.95] translate-y-4'}`;
+      return `absolute inset-0 w-full h-full ${overflowClass} overflow-x-hidden custom-scrollbar pb-20 bg-background-light dark:bg-background-dark transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isActive ? 'opacity-100 z-10 scale-100 translate-y-0' : 'opacity-0 z-0 pointer-events-none scale-[0.95] translate-y-4'}`;
   }
 
   const renderPersistentScreens = () => {
@@ -403,7 +403,7 @@ const AppContent: React.FC = () => {
              <div className="w-full max-w-md bg-background-light dark:bg-background-dark h-full shadow-2xl overflow-hidden relative flex flex-col">
                 <div className="flex-1 w-full h-full relative overflow-hidden">
                     {renderPersistentScreens()}
-                    <div className={`absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden custom-scrollbar pb-24 ${!isTabScreen(currentScreen) ? 'z-20' : 'z-0 pointer-events-none'}`}>
+                    <div className={`absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden custom-scrollbar pb-20 ${!isTabScreen(currentScreen) ? 'z-20' : 'z-0 pointer-events-none'}`}>
                         {renderScreen()}
                     </div>
                 </div>

@@ -104,7 +104,7 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
   };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-24 font-display overflow-hidden">
+    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-6 font-display overflow-hidden">
        {/* Header */}
        <header className="sticky top-0 z-20 bg-white/95 dark:bg-card-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-colors duration-200">
         <div className="flex items-center p-4 justify-between h-16">

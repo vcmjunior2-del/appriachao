@@ -262,7 +262,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   // }, [sentimentValue, selectedImprovementAreas, sentimentComment, dataLoaded]);
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-24 max-w-md mx-auto bg-background-light dark:bg-background-dark">
+    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-16 max-w-md mx-auto bg-background-light dark:bg-background-dark">
       <header className="sticky top-0 z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">

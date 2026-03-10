@@ -10,7 +10,7 @@ const NewsModal: React.FC<NewsModalProps> = ({ news, onClose }) => {
   if (!news) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex items-start justify-center sm:items-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-300">
       <div className="bg-white dark:bg-card-dark w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
         <div className="relative h-64 w-full bg-cover bg-center">
           {news.videoUrl ? (

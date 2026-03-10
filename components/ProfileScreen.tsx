@@ -86,7 +86,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onNavigate }) =
   if (loading) return <div className="flex h-screen items-center justify-center bg-background-light dark:bg-background-dark"><span className="material-symbols-outlined animate-spin text-primary">progress_activity</span></div>;
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden pb-24 max-w-md mx-auto bg-background-light dark:bg-background-dark">
+    <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden pb-16 max-w-md mx-auto bg-background-light dark:bg-background-dark">
       <div className="sticky top-0 z-20 flex items-center bg-white/90 dark:bg-[#101622]/90 backdrop-blur-md p-4 border-b border-gray-100 dark:border-gray-800 justify-between">
         <div className="w-10"></div> <h2 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">Meu Perfil</h2>
         <button onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)} disabled={isSaving} className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isEditing ? 'bg-primary text-white shadow-md' : 'text-primary dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>{isSaving ? <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> : <span className="material-symbols-outlined">{isEditing ? 'check' : 'edit_square'}</span>}</button>
