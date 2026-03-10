@@ -173,6 +173,8 @@ export interface CityPlaceSubCategory {
     id?: string;
     name: string;
     category: 'Úteis' | 'Saúde' | 'Educação' | 'Hospedagem' | 'Gastronomia' | 'Comércio' | 'Lazer' | 'Religião';
+    icon?: string;
+    color?: string;
 }
 
 export interface CityPlace {
@@ -185,6 +187,8 @@ export interface CityPlace {
     address?: string;
     image?: string; 
     mapLink?: string; 
+    lat?: number;
+    lng?: number;
 }
 
 export interface GarbageTruck {

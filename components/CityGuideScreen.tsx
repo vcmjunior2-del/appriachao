@@ -1,8 +1,36 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { CityPlace, CityPlaceSubCategory } from '../types';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default marker icon
+// @ts-ignore
+import icon from 'leaflet/dist/images/marker-icon.png';
+// @ts-ignore
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+const MapUpdater = () => {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+};
 
 interface CityGuideScreenProps {
   onBack: () => void;
@@ -17,6 +45,8 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
   const [activeCategory, setActiveCategory] = useState(initialCategory || 'Todos');
   const [activeSubCategoryId, setActiveSubCategoryId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [selectedPlace, setSelectedPlace] = useState<CityPlace | null>(null);
   
   // Reset subcategory when category changes
   useEffect(() => {
@@ -115,11 +145,26 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           
-          <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">
-            {activeSubCategoryId ? (registeredSubCats.find(sc => sc.id === activeSubCategoryId)?.name || 'Pasta') : 'Guia da Cidade'}
-          </h1>
+          <div className="flex flex-col items-center flex-1">
+            <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight text-center">
+              {activeSubCategoryId ? (registeredSubCats.find(sc => sc.id === activeSubCategoryId)?.name || 'Pasta') : 'Guia da Cidade'}
+            </h1>
+            {!activeSubCategoryId && (
+              <button 
+                onClick={() => setViewMode('map')}
+                className="text-xs font-bold text-primary hover:underline mt-1"
+              >
+                Ver mapa geral do guia
+              </button>
+            )}
+          </div>
           
-          <div className="size-10"></div>
+          <button 
+            onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+            className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-slate-800 dark:text-slate-200 transition-colors"
+          >
+            <span className="material-symbols-outlined">{viewMode === 'list' ? 'map' : 'list'}</span>
+          </button>
         </div>
 
         {/* Search & Filter */}
@@ -160,6 +205,21 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
              <div className="flex flex-col items-center justify-center pt-20 gap-3">
                  <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
              </div>
+        ) : viewMode === 'map' ? (
+            <div className="h-[calc(100vh-200px)] w-full rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800">
+                <MapContainer center={[-11.8061, -39.3853]} zoom={13} className="h-full w-full">
+                    <MapUpdater />
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    {filteredPlaces.filter(p => p.lat && p.lng).map(place => (
+                        <Marker key={place.id} position={[Number(place.lat), Number(place.lng)]}>
+                            <Popup>
+                                <div className="font-bold">{place.name}</div>
+                                {place.address && <div className="text-xs">{place.address}</div>}
+                            </Popup>
+                        </Marker>
+                    ))}
+                </MapContainer>
+            </div>
         ) : (subCategoriesToDisplay.length === 0 && placesWithoutSubCategory.length === 0) ? (
             <div className="flex flex-col items-center justify-center pt-20 text-center text-gray-500">
                 <span className="material-symbols-outlined text-4xl mb-2">location_off</span>
@@ -174,12 +234,14 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
                         onClick={() => setActiveSubCategoryId(subCat.id!)}
                         className="bg-white dark:bg-card-dark rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
                     >
-                        <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                            <span className="material-symbols-outlined text-2xl">folder</span>
+                        <div 
+                            className="size-12 rounded-xl flex items-center justify-center"
+                            style={{ backgroundColor: `${subCat.color || '#3b82f6'}20`, color: subCat.color || '#3b82f6' }}
+                        >
+                            <span className="material-symbols-outlined text-2xl">{subCat.icon || 'folder'}</span>
                         </div>
                         <div className="flex-1">
                             <h3 className="text-base font-bold text-slate-900 dark:text-white">{subCat.name}</h3>
-                            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pasta</p>
                         </div>
                         <span className="material-symbols-outlined text-slate-400">chevron_right</span>
                     </button>
@@ -227,7 +289,7 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
                                 )}
                                 {place.address && (
                                     <button 
-                                        onClick={() => openMap(place.address!, place.mapLink)}
+                                        onClick={() => setSelectedPlace(place)}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
                                     >
                                         <span className="material-symbols-outlined text-[16px]">map</span>
@@ -241,6 +303,28 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
             </div>
         )}
       </main>
+      {/* Map Modal */}
+      {selectedPlace && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-[#1e293b] w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 h-[80vh] flex flex-col">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedPlace.name}</h3>
+                    <button onClick={() => setSelectedPlace(null)} className="size-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div className="flex-1">
+                    <MapContainer center={[-11.8061, -39.3853]} zoom={15} className="h-full w-full">
+                        <MapUpdater />
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <Marker position={[Number(selectedPlace.lat) || -11.8061, Number(selectedPlace.lng) || -39.3853]}>
+                            <Popup>{selectedPlace.name}</Popup>
+                        </Marker>
+                    </MapContainer>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
