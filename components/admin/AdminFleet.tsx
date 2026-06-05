@@ -21,6 +21,7 @@ const AdminFleet: React.FC = () => {
     const mapRef = useRef<any>(null);
     const markersRef = useRef<{[key: string]: any}>({});
     const routePolylineRef = useRef<any>(null);
+    const arrowMarkersRef = useRef<any[]>([]);
     
     // Route Editing State
     const [isRouteMode, setIsRouteMode] = useState(false);
@@ -64,6 +65,11 @@ const AdminFleet: React.FC = () => {
         return () => {
             unsub();
             Object.values(simulationIntervals.current).forEach(clearInterval);
+            if (arrowMarkersRef.current) {
+                arrowMarkersRef.current.forEach(m => {
+                    if (mapRef.current) mapRef.current.removeLayer(m);
+                });
+            }
         };
     }, [currentUser]);
 
@@ -116,15 +122,65 @@ const AdminFleet: React.FC = () => {
         if (routePolylineRef.current) {
             routePolylineRef.current.setLatLngs(points);
             routePolylineRef.current.setStyle({ 
-                color: isRouteMode ? '#f59e0b' : '#3b82f6', // Amber when editing, Blue when saved
+                color: isRouteMode ? '#f59e0b' : '#10b981', // Amber when editing, Emerald when saved
                 dashArray: isRouteMode ? '5, 10' : null 
             });
         } else {
             routePolylineRef.current = window.L.polyline(points, { 
-                color: '#3b82f6', 
+                color: '#10b981', 
                 weight: 4, 
-                opacity: 0.6 
+                opacity: 0.8 
             }).addTo(mapRef.current);
+        }
+
+        // Clean up previous direction arrow markers
+        if (arrowMarkersRef.current) {
+            arrowMarkersRef.current.forEach(m => {
+                if (mapRef.current) mapRef.current.removeLayer(m);
+            });
+            arrowMarkersRef.current = [];
+        }
+
+        // Draw direction arrows along the route points
+        if (points.length > 1) {
+            const newArrows: any[] = [];
+            for (let i = 0; i < points.length - 1; i++) {
+                const p1 = points[i];
+                const p2 = points[i + 1];
+                
+                const distY = p1.lat - p2.lat;
+                const distX = p1.lng - p2.lng;
+                const distance = Math.sqrt(distX * distX + distY * distY);
+                
+                if (distance > 0.0001) {
+                    const midLat = (p1.lat + p2.lat) / 2;
+                    const midLng = (p1.lng + p2.lng) / 2;
+                    
+                    const lat1 = p1.lat * Math.PI / 180;
+                    const lat2 = p2.lat * Math.PI / 180;
+                    const dLng = (p2.lng - p1.lng) * Math.PI / 180;
+                    const yVal = Math.sin(dLng) * Math.cos(lat2);
+                    const xVal = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+                    let bearing = Math.atan2(yVal, xVal) * 180 / Math.PI;
+                    bearing = (bearing + 360) % 360;
+
+                    const activeColor = isRouteMode ? '#f59e0b' : '#10b981';
+                    const arrowIcon = window.L.divIcon({
+                        className: 'custom-route-arrow-marker',
+                        html: `<div style="transform: rotate(${bearing}deg); font-size: 14px; color: ${activeColor}; font-weight: bold; display: flex; align-items: center; justify-content: center; text-shadow: 0px 0px 4px #ffffff, 0px 1px 2px rgba(0,0,0,0.4); pointer-events: none; line-height: 1;">▲</div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    });
+                    
+                    const m = window.L.marker([midLat, midLng], {
+                        icon: arrowIcon,
+                        interactive: false
+                    }).addTo(mapRef.current);
+                    
+                    newArrows.push(m);
+                }
+            }
+            arrowMarkersRef.current = newArrows;
         }
 
         // Draw circles for points when editing
@@ -287,8 +343,8 @@ const AdminFleet: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-500 relative h-full flex flex-col">
             <div className="flex flex-col md:flex-row justify-between items-end gap-4 shrink-0">
                 <div>
-                    <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-1">Gestão de Frota</h2>
-                    <p className="text-slate-500 dark:text-slate-400">Monitore, cadastre a rota e simule o trajeto dos veículos.</p>
+                    <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-1">Gestão de Rota de Coleta</h2>
+                    <p className="text-slate-500 dark:text-slate-400">Monitore, cadastre e desenhe o sentido da rota de coleta de resíduos.</p>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={() => { setIsEditing(true); setFormData({ id: '', plate: '', status: 'Parado', lat: -11.8069, lng: -39.3856, speed: 0, lastUpdate: null, routeDescription: '' }); }} className="bg-primary hover:bg-blue-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg flex items-center gap-2">

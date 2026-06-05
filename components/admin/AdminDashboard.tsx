@@ -95,7 +95,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <p className="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Cadastros</p>
             <SidebarLink icon="map" label="Guia da Cidade" view="CITY_GUIDE" />
             <SidebarLink icon="newspaper" label="Notícias e Destaques" view="NEWS" />
-            <SidebarLink icon="local_shipping" label="Frota de Limpeza" view="FLEET" />
+            <SidebarLink icon="local_shipping" label="Gestão de Rota de Coleta" view="FLEET" />
             <SidebarLink icon="corporate_fare" label="Secretarias / Órgãos" view="SECRETARIATS" />
             
             {/* Tipos de Ocorrência Menu Expandable */}

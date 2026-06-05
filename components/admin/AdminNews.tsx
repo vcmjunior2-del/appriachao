@@ -11,6 +11,7 @@ const AdminNews: React.FC = () => {
     const [newsList, setNewsList] = useState<NewsItem[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
     
     // Form State
     const defaultForm: NewsItem = {
@@ -54,8 +55,8 @@ const AdminNews: React.FC = () => {
         setIsEditing(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Excluir esta notícia permanentemente?")) await deleteDoc(doc(db, "news", id));
+    const handleDelete = (id: string) => {
+        setDeleteId(id);
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -353,6 +354,47 @@ const AdminNews: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Confirmação de Exclusão */}
+            {deleteId && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-[#1e293b] rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-700 shadow-2xl animate-in zoom-in-95 duration-250">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="size-12 rounded-full bg-red-105 dark:bg-red-950/40 flex items-center justify-center">
+                                <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-3xl">warning</span>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white">Confirmar Exclusão</h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-xs mt-2 leading-relaxed">
+                                    Deseja realmente excluir esta notícia permanentemente? Esta ação é irreversível e removerá o destaque imediatamente do aplicativo.
+                                </p>
+                            </div>
+                            <div className="flex w-full gap-3 pt-2">
+                                <button
+                                    onClick={() => setDeleteId(null)}
+                                    className="flex-1 py-2.5 rounded-xl border border-slate-250 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await deleteDoc(doc(db, "news", deleteId));
+                                            setDeleteId(null);
+                                        } catch (e) {
+                                            console.error("Erro ao deletar notícia:", e);
+                                            alert("Não foi possível excluir o destaque.");
+                                        }
+                                    }}
+                                    className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition-colors"
+                                >
+                                    Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

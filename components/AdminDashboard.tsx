@@ -14,12 +14,13 @@ import AdminCityGuide from './admin/AdminCityGuide';
 import AdminFleet from './admin/AdminFleet'; 
 import AdminNews from './admin/AdminNews'; // Novo Componente
 import AdminNotifications from './admin/AdminNotifications'; // Novo Componente
+import AdminRecycling from './admin/AdminRecycling';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type AdminView = 'DASHBOARD' | 'USERS' | 'REQ_DASHBOARD' | 'REQ_LIST' | 'REQ_MAP' | 'REQ_KANBAN' | 'SECRETARIATS' | 'SUBJECTS_CONFIG' | 'SERVICES_CONFIG' | 'INFO_OVERVIEW' | 'INFO_CATALOG' | 'INFO_NEW_FOLDER' | 'INFO_NEW_DOC' | 'NOTIFICATIONS' | 'CONFIG' | 'SENTIMENT' | 'CITY_GUIDE' | 'FLEET_MANAGER' | 'NEWS_MANAGER';
+type AdminView = 'DASHBOARD' | 'USERS' | 'REQ_DASHBOARD' | 'REQ_LIST' | 'REQ_MAP' | 'REQ_KANBAN' | 'SECRETARIATS' | 'SUBJECTS_CONFIG' | 'SERVICES_CONFIG' | 'INFO_OVERVIEW' | 'INFO_CATALOG' | 'INFO_NEW_FOLDER' | 'INFO_NEW_DOC' | 'NOTIFICATIONS' | 'CONFIG' | 'SENTIMENT' | 'CITY_GUIDE' | 'FLEET_MANAGER' | 'NEWS_MANAGER' | 'RECYCLING_DASHBOARD';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { config } = useConfig();
@@ -111,7 +112,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <div className="my-2 border-t border-slate-100 dark:border-slate-800"></div>
             <p className="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Serviços</p>
             <SidebarLink icon="mood" label="Sentimento Popular" view="SENTIMENT" />
-            <SidebarLink icon="local_shipping" label="Gestão de Frota" view="FLEET_MANAGER" />
+            <SidebarLink icon="local_shipping" label="Gestão de Rota de Coleta" view="FLEET_MANAGER" />
+            <SidebarLink icon="recycling" label="Gestão de Coleta" view="RECYCLING_DASHBOARD" />
 
             {/* Portal de Serviços Menu Expandable */}
             <div>
@@ -229,6 +231,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             {currentView === 'FLEET_MANAGER' && <AdminFleet />}
             
             {currentView === 'NEWS_MANAGER' && <AdminNews />}
+
+            {currentView === 'RECYCLING_DASHBOARD' && <AdminRecycling />}
 
             {currentView === 'NOTIFICATIONS' && <AdminNotifications />}
 

@@ -28,6 +28,7 @@ import DemographicsScreen from './components/DemographicsScreen';
 import CityGuideScreen from './components/CityGuideScreen';
 import GarbageTrackerScreen from './components/GarbageTrackerScreen'; // Import Tracker
 import TFDSchedulingScreen from './components/TFDSchedulingScreen'; // Import TFD
+import RecyclingScreen from './components/RecyclingScreen'; // Import Recycling
 import { DashboardBottomNav } from './components/BottomNav';
 
 const AppContent: React.FC = () => {
@@ -259,6 +260,7 @@ const AppContent: React.FC = () => {
                   onBack={() => handleNavigate(Screen.HOME)} 
                   onNavigateToTracker={() => handleNavigate(Screen.GARBAGE_TRACKER)}
                   onNavigateToTFD={() => handleNavigate(Screen.TFD_SCHEDULING)}
+                  onNavigateToRecycling={() => handleNavigate(Screen.COLETA_SELETIVA)}
                 />
             </div>
             <div 
@@ -373,6 +375,8 @@ const AppContent: React.FC = () => {
         return <GarbageTrackerScreen onBack={() => setCurrentScreen(Screen.INFO_SERVICES)} />;
       case Screen.TFD_SCHEDULING:
         return <TFDSchedulingScreen onBack={() => setCurrentScreen(Screen.HOME)} />;
+      case Screen.COLETA_SELETIVA:
+        return <RecyclingScreen onBack={() => setCurrentScreen(Screen.INFO_SERVICES)} />;
         
       default:
         return <WelcomeScreen onLogin={() => setCurrentScreen(Screen.LOGIN)} onRegister={() => setCurrentScreen(Screen.REGISTER)} onAdminLogin={handleAdminLoginClick} onGuestLogin={handleGuestLogin} />;
@@ -392,7 +396,8 @@ const AppContent: React.FC = () => {
                         currentScreen !== Screen.DEMOGRAPHICS &&
                         currentScreen !== Screen.CITY_GUIDE &&
                         currentScreen !== Screen.GARBAGE_TRACKER &&
-                        currentScreen !== Screen.TFD_SCHEDULING;
+                        currentScreen !== Screen.TFD_SCHEDULING &&
+                        currentScreen !== Screen.COLETA_SELETIVA;
 
   return (
     <div className="h-[100dvh] bg-gray-100 dark:bg-gray-900 flex justify-center overflow-hidden">

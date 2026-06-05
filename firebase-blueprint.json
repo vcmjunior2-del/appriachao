@@ -22,12 +22,73 @@
         "notes": { "type": "string", "description": "Optional notes for the request." }
       },
       "required": ["userId", "patientName", "patientCpf", "appointmentDate", "transportDate", "destinationCity", "destinationHospital", "contactPhone", "status", "createdAt"]
+    },
+    "RecyclingProfile": {
+      "title": "Recycling Profile",
+      "description": "Links a citizen user to their property code and tracks accumulated EcoPontos and bags.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "propertyCode": { "type": "string" },
+        "ecoPoints": { "type": "integer" },
+        "totalBags": { "type": "integer" },
+        "linkedAt": { "type": "string", "format": "date-time" },
+        "neighborhood": { "type": "string" }
+      },
+      "required": ["userId", "userName", "propertyCode", "ecoPoints", "totalBags"]
+    },
+    "RecyclingTransaction": {
+      "title": "Recycling Transaction",
+      "description": "A validated recycling bag collection log recorded by an agent.",
+      "type": "object",
+      "properties": {
+        "agentId": { "type": "string" },
+        "agentName": { "type": "string" },
+        "citizenId": { "type": "string" },
+        "citizenName": { "type": "string" },
+        "citizenCpf": { "type": "string" },
+        "citizenImovel": { "type": "string" },
+        "sacosVolume": { "type": "integer" },
+        "pontos": { "type": "integer" },
+        "gps": { "type": "object" },
+        "status": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "required": ["agentId", "citizenId", "sacosVolume", "pontos", "status"]
+    },
+    "BulkPickupRequest": {
+      "title": "Bulk Pickup Request",
+      "description": "A scheduled request for collecting heavy items like prunings or furniture.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "type": { "type": "string" },
+        "address": { "type": "string" },
+        "dateTime": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["userId", "type", "address", "dateTime", "status"]
     }
   },
   "firestore": {
     "/tfd_appointments/{appointmentId}": {
       "schema": "TFDAppointment",
       "description": "Collection of TFD transportation requests."
+    },
+    "/recycling_profiles/{profileId}": {
+      "schema": "RecyclingProfile",
+      "description": "User registration for IPTU Verde."
+    },
+    "/recycling_transactions/{transactionId}": {
+      "schema": "RecyclingTransaction",
+      "description": "Logged recycling deposits."
+    },
+    "/recycling_bulk_pickups/{pickupId}": {
+      "schema": "BulkPickupRequest",
+      "description": "Bulky item collection appointments."
     }
   }
 }

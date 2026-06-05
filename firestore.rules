@@ -119,6 +119,19 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }
+
+    // --- Coleta Seletiva (Reciclagem e EcoPontos) ---
+    match /recycling_profiles/{profileId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /recycling_transactions/{transactionId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /recycling_bulk_pickups/{pickupId} {
+      allow read, write: if isAuthenticated();
+    }
     
     // Regra Padrão de Bloqueio (Segurança)
     match /{document=**} {

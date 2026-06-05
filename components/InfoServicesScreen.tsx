@@ -10,12 +10,13 @@ interface InfoServicesScreenProps {
   onBack: () => void;
   onNavigateToTracker?: () => void; 
   onNavigateToTFD?: () => void;
+  onNavigateToRecycling?: () => void;
 }
 
 // --- Global Cache to prevent reloading flicker ---
 let cachedServices: InfoServiceDefinition[] | null = null;
 
-const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavigateToTracker, onNavigateToTFD }) => {
+const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavigateToTracker, onNavigateToTFD, onNavigateToRecycling }) => {
   const [searchTerm, setSearchTerm] = useState('');
   // Initialize with cache if available
   const [services, setServices] = useState<InfoServiceDefinition[]>(cachedServices || []);
@@ -113,6 +114,9 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
       } else if (service.actionType === 'INTERNAL_ROUTE' && service.actionConfig === 'TFD_SCHEDULING') {
           // Special Action for TFD
           onNavigateToTFD?.();
+      } else if (service.actionType === 'INTERNAL_ROUTE' && service.actionConfig === 'COLETA_SELETIVA') {
+          // Special Action for Coleta Seletiva
+          onNavigateToRecycling?.();
       } else if (service.actionType === 'LINK_WEB' && service.actionConfig) {
           // Open Web Browser using Capacitor Browser
           let url = service.actionConfig.trim();
@@ -219,6 +223,31 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
                     <p className="text-blue-100 text-[10px] mt-1 relative z-10 max-w-[65%] font-medium opacity-90">
                         Acesse documentos, taxas e consultas de forma rápida e segura.
                     </p>
+                </div>
+
+                {/* COLETA SELETIVA BANNER (Only at root) */}
+                <div 
+                    onClick={() => onNavigateToRecycling?.()}
+                    className={`relative w-full min-h-[105px] rounded-3xl bg-gradient-to-r from-emerald-600 to-green-500 overflow-hidden shadow-lg shadow-green-500/10 p-5 flex-col justify-center mb-6 shrink-0 cursor-pointer active:scale-95 transition-all group ${isRoot ? 'flex' : 'hidden'}`}
+                >
+                    <div className="absolute right-0 top-0 h-full w-1/3 opacity-15">
+                        <span className="material-symbols-outlined text-[100px] text-white -mr-4 -mt-2">recycling</span>
+                    </div>
+                    <div className="relative z-10 flex justify-between items-center w-full">
+                        <div>
+                            <div className="flex items-center gap-1.5 mb-1 opacity-90">
+                                <span className="material-symbols-outlined text-[16px] text-white">eco</span>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-white">IPTU Verde & Prêmios</span>
+                            </div>
+                            <h3 className="text-xl font-black text-white leading-tight mb-1">Coleta Seletiva</h3>
+                            <p className="text-xs text-green-100 opacity-90 max-w-[85%]">
+                                Separe resíduos, acumule EcoPontos e ganhe abatimento fiscal!
+                            </p>
+                        </div>
+                        <div className="h-10 w-10 shrink-0 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                            <span className="material-symbols-outlined text-white">chevron_right</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* EMPTY STATE */}
