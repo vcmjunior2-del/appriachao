@@ -9,12 +9,13 @@ import { Browser } from '@capacitor/browser';
 interface InfoServicesScreenProps {
   onBack: () => void;
   onNavigateToTracker?: () => void; 
+  onNavigateToTFD?: () => void;
 }
 
 // --- Global Cache to prevent reloading flicker ---
 let cachedServices: InfoServiceDefinition[] | null = null;
 
-const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTracker: () => void }> = ({ onBack, onNavigateToTracker }) => {
+const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavigateToTracker, onNavigateToTFD }) => {
   const [searchTerm, setSearchTerm] = useState('');
   // Initialize with cache if available
   const [services, setServices] = useState<InfoServiceDefinition[]>(cachedServices || []);
@@ -108,7 +109,10 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps & { onNavigateToTrack
           setSearchTerm(''); // Clear search on enter
       } else if (service.actionType === 'TRACKER_BANNER') {
           // Special Action for Tracker
-          onNavigateToTracker();
+          onNavigateToTracker?.();
+      } else if (service.actionType === 'INTERNAL_ROUTE' && service.actionConfig === 'TFD_SCHEDULING') {
+          // Special Action for TFD
+          onNavigateToTFD?.();
       } else if (service.actionType === 'LINK_WEB' && service.actionConfig) {
           // Open Web Browser using Capacitor Browser
           let url = service.actionConfig.trim();

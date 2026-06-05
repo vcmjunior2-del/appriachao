@@ -16,6 +16,7 @@ export enum Screen {
   DEMOGRAPHICS = 'DEMOGRAPHICS',
   CITY_GUIDE = 'CITY_GUIDE',
   GARBAGE_TRACKER = 'GARBAGE_TRACKER', // Nova Tela
+  TFD_SCHEDULING = 'TFD_SCHEDULING',
   ADMIN_LOGIN = 'ADMIN_LOGIN',
   ADMIN_DASHBOARD = 'ADMIN_DASHBOARD'
 }
@@ -213,4 +214,23 @@ export interface NewsItem {
     colorTheme: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'orange' | 'gray';
     date: any;
     active: boolean;
+}
+
+export interface TFDAppointment {
+    id?: string;
+    userId: string;
+    userName: string;
+    patientName: string;
+    patientCpf: string;
+    appointmentDate: any; 
+    transportDate: any; 
+    destinationCity: string;
+    destinationHospital: string;
+    medicalSpecialty: string;
+    hasAccompanyingPerson: boolean;
+    accompanyingPersonName?: string;
+    contactPhone: string;
+    status: 'Pendente' | 'Confirmado' | 'Cancelado' | 'Realizado';
+    createdAt: any;
+    notes?: string;
 }

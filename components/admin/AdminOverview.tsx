@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, getDocs, where } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { RequestItem, UserItem, Secretariat, ServiceTypeDefinition } from '../../types';
 
 const AdminOverview: React.FC = () => {
     const { currentUser } = useAuth();
+    const [isBootstrapping, setIsBootstrapping] = useState(false);
+    const [bootstrapStatus, setBootstrapStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [stats, setStats] = useState({
         pending: 0,
         open: 0,
@@ -51,6 +53,38 @@ const AdminOverview: React.FC = () => {
         return () => { unsubReqs(); unsubUsers(); unsubSecs(); };
     }, [currentUser]);
 
+    const handleBootstrapTFD = async () => {
+        setIsBootstrapping(true);
+        try {
+            // Check if already exists
+            const q = query(collection(db, "info_services"), where("actionConfig", "==", "TFD_SCHEDULING"));
+            const snapshot = await getDocs(q);
+            
+            if (snapshot.empty) {
+                await addDoc(collection(db, "info_services"), {
+                    title: "Agendamento de TFD",
+                    description: "Solicite transporte para consultas e exames fora do município.",
+                    icon: "directions_bus",
+                    colorTheme: "blue",
+                    actionType: "INTERNAL_ROUTE",
+                    actionConfig: "TFD_SCHEDULING",
+                    active: true,
+                    parentId: null
+                });
+                setBootstrapStatus('success');
+            } else {
+                alert("O serviço de TFD já está cadastrado no Portal de Serviços.");
+                setBootstrapStatus('success');
+            }
+        } catch (error) {
+            console.error("Error bootstrapping TFD:", error);
+            setBootstrapStatus('error');
+        } finally {
+            setIsBootstrapping(false);
+            setTimeout(() => setBootstrapStatus('idle'), 3000);
+        }
+    };
+
     return (
         <div className="animate-in fade-in duration-500 pb-10">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
@@ -59,6 +93,20 @@ const AdminOverview: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400">Resumo das atividades e métricas de desempenho dos serviços públicos.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button 
+                        onClick={handleBootstrapTFD}
+                        disabled={isBootstrapping}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                            bootstrapStatus === 'success' ? 'bg-green-500 text-white' :
+                            bootstrapStatus === 'error' ? 'bg-red-500 text-white' :
+                            'bg-primary text-white hover:bg-blue-600'
+                        }`}
+                    >
+                        <span className="material-symbols-outlined text-[18px]">
+                            {isBootstrapping ? 'progress_activity' : bootstrapStatus === 'success' ? 'check' : 'rocket_launch'}
+                        </span>
+                        {isBootstrapping ? 'Configurando...' : bootstrapStatus === 'success' ? 'TFD Configurado!' : 'Ativar TFD no Portal'}
+                    </button>
                     <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm">
                         <span className="material-symbols-outlined text-[18px]">calendar_today</span>
                         Últimos 7 dias

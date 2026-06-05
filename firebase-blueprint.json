@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "TFDAppointment": {
+      "title": "TFD Appointment",
+      "description": "A request for Tratamento Fora de Domicílio transportation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who requested the transport." },
+        "userName": { "type": "string", "description": "The name of the user who requested the transport." },
+        "patientName": { "type": "string", "description": "The name of the patient." },
+        "patientCpf": { "type": "string", "description": "The CPF of the patient." },
+        "appointmentDate": { "type": "string", "format": "date-time", "description": "The date and time of the medical appointment." },
+        "transportDate": { "type": "string", "format": "date-time", "description": "The requested date and time for transport." },
+        "destinationCity": { "type": "string", "description": "The destination city." },
+        "destinationHospital": { "type": "string", "description": "The destination hospital or clinic." },
+        "medicalSpecialty": { "type": "string", "description": "The medical specialty of the appointment." },
+        "hasAccompanyingPerson": { "type": "boolean", "description": "Whether the patient has an accompanying person." },
+        "accompanyingPersonName": { "type": "string", "description": "The name of the accompanying person, if any." },
+        "contactPhone": { "type": "string", "description": "The contact phone number." },
+        "status": { "type": "string", "enum": ["Pendente", "Confirmado", "Cancelado", "Realizado"], "description": "The current status of the request." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The timestamp when the request was created." },
+        "notes": { "type": "string", "description": "Optional notes for the request." }
+      },
+      "required": ["userId", "patientName", "patientCpf", "appointmentDate", "transportDate", "destinationCity", "destinationHospital", "contactPhone", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/tfd_appointments/{appointmentId}": {
+      "schema": "TFDAppointment",
+      "description": "Collection of TFD transportation requests."
+    }
+  }
+}

@@ -27,6 +27,7 @@ import WeatherScreen from './components/WeatherScreen';
 import DemographicsScreen from './components/DemographicsScreen';
 import CityGuideScreen from './components/CityGuideScreen';
 import GarbageTrackerScreen from './components/GarbageTrackerScreen'; // Import Tracker
+import TFDSchedulingScreen from './components/TFDSchedulingScreen'; // Import TFD
 import { DashboardBottomNav } from './components/BottomNav';
 
 const AppContent: React.FC = () => {
@@ -257,6 +258,7 @@ const AppContent: React.FC = () => {
                 <InfoServicesScreen 
                   onBack={() => handleNavigate(Screen.HOME)} 
                   onNavigateToTracker={() => handleNavigate(Screen.GARBAGE_TRACKER)}
+                  onNavigateToTFD={() => handleNavigate(Screen.TFD_SCHEDULING)}
                 />
             </div>
             <div 
@@ -369,6 +371,8 @@ const AppContent: React.FC = () => {
         return <CityGuideScreen onBack={() => setCurrentScreen(Screen.HOME)} initialCategory={cityGuideCategory} />;
       case Screen.GARBAGE_TRACKER:
         return <GarbageTrackerScreen onBack={() => setCurrentScreen(Screen.INFO_SERVICES)} />;
+      case Screen.TFD_SCHEDULING:
+        return <TFDSchedulingScreen onBack={() => setCurrentScreen(Screen.HOME)} />;
         
       default:
         return <WelcomeScreen onLogin={() => setCurrentScreen(Screen.LOGIN)} onRegister={() => setCurrentScreen(Screen.REGISTER)} onAdminLogin={handleAdminLoginClick} onGuestLogin={handleGuestLogin} />;
@@ -387,7 +391,8 @@ const AppContent: React.FC = () => {
                         currentScreen !== Screen.WEATHER &&
                         currentScreen !== Screen.DEMOGRAPHICS &&
                         currentScreen !== Screen.CITY_GUIDE &&
-                        currentScreen !== Screen.GARBAGE_TRACKER;
+                        currentScreen !== Screen.GARBAGE_TRACKER &&
+                        currentScreen !== Screen.TFD_SCHEDULING;
 
   return (
     <div className="h-[100dvh] bg-gray-100 dark:bg-gray-900 flex justify-center overflow-hidden">
