@@ -48,6 +48,43 @@ const AppContent: React.FC = () => {
   const isFirstLoad1 = useRef(true);
   const isFirstLoad2 = useRef(true);
 
+  // Scroll direction state for dynamic collapsible BottomNav
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('up');
+  const lastScrollTopRef = useRef<number>(0);
+
+  // Scroll detection hook (with capture: true to intercept all nested container scrolling)
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target || typeof target.scrollTop !== 'number') return;
+      
+      const currentScroll = target.scrollTop;
+      
+      // Prevent jitter or micro-scrolling triggers
+      if (Math.abs(currentScroll - lastScrollTopRef.current) < 8) return;
+      
+      // If we scroll past 60px down, mark as down. If scrolling up, mark as up
+      if (currentScroll > lastScrollTopRef.current && currentScroll > 60) {
+        setScrollDirection('down');
+      } else if (currentScroll < lastScrollTopRef.current) {
+        setScrollDirection('up');
+      }
+      
+      lastScrollTopRef.current = currentScroll;
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, []);
+
+  // Reset scroll state on screen change to ensure navbar is always fully visible initially
+  useEffect(() => {
+    setScrollDirection('up');
+    lastScrollTopRef.current = 0;
+  }, [currentScreen]);
+
   // --- Initial Load Effect ---
   useEffect(() => {
     if (!loading) {
@@ -421,6 +458,7 @@ const AppContent: React.FC = () => {
                     <DashboardBottomNav 
                         currentScreen={currentScreen} 
                         onNavigate={handleBottomNavNavigate} 
+                        scrollDirection={scrollDirection}
                     />
                 )}
             </div>
