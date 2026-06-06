@@ -74,6 +74,21 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
       const unsubscribe = onSnapshot(collection(db, "info_services"), 
         (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InfoServiceDefinition));
+            const hasRecycling = data.some(item => item.actionConfig === 'COLETA_SELETIVA');
+            if (!hasRecycling) {
+                // Prepend the Coleta Seletiva as a normal-sized custom card in the grid
+                data.unshift({
+                    id: 'coleta_seletiva_virtual',
+                    title: 'Coleta Seletiva',
+                    description: 'Participe do IPTU Verde: registre resíduos, ganhe EcoPontos e garanta abatimento fiscal.',
+                    icon: 'recycling',
+                    colorTheme: 'green',
+                    actionType: 'INTERNAL_ROUTE',
+                    actionConfig: 'COLETA_SELETIVA',
+                    active: true,
+                    parentId: null
+                });
+            }
             setServices(data);
             cachedServices = data; // Update cache
             setLoading(false);
@@ -225,31 +240,6 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
                     </p>
                 </div>
 
-                {/* COLETA SELETIVA BANNER (Only at root) */}
-                <div 
-                    onClick={() => onNavigateToRecycling?.()}
-                    className={`relative w-full min-h-[105px] rounded-3xl bg-gradient-to-r from-emerald-600 to-green-500 overflow-hidden shadow-lg shadow-green-500/10 p-5 flex-col justify-center mb-6 shrink-0 cursor-pointer active:scale-95 transition-all group ${isRoot ? 'flex' : 'hidden'}`}
-                >
-                    <div className="absolute right-0 top-0 h-full w-1/3 opacity-15">
-                        <span className="material-symbols-outlined text-[100px] text-white -mr-4 -mt-2">recycling</span>
-                    </div>
-                    <div className="relative z-10 flex justify-between items-center w-full">
-                        <div>
-                            <div className="flex items-center gap-1.5 mb-1 opacity-90">
-                                <span className="material-symbols-outlined text-[16px] text-white">eco</span>
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-white">IPTU Verde & Prêmios</span>
-                            </div>
-                            <h3 className="text-xl font-black text-white leading-tight mb-1">Coleta Seletiva</h3>
-                            <p className="text-xs text-green-100 opacity-90 max-w-[85%]">
-                                Separe resíduos, acumule EcoPontos e ganhe abatimento fiscal!
-                            </p>
-                        </div>
-                        <div className="h-10 w-10 shrink-0 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                            <span className="material-symbols-outlined text-white">chevron_right</span>
-                        </div>
-                    </div>
-                </div>
-
                 {/* EMPTY STATE */}
                 <div className={`flex-col items-center justify-center pt-10 text-center ${displayedServices.length === 0 ? 'flex' : 'hidden'}`}>
                     <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">folder_off</span>
@@ -265,16 +255,19 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
                         const colors = getColorClasses(service.colorTheme);
                         const iconIsImg = isUrl(service.icon);
                         const isTracker = service.actionType === 'TRACKER_BANNER';
-
-                        // Styling overrides for Tracker to keep visual punch while maintaining grid size
+                        const isRecycling = service.actionConfig === 'COLETA_SELETIVA';
+                        
+                        // Styling overrides for Tracker or special items to keep visual punch while maintaining grid size
                         const cardBg = isTracker 
                             ? 'bg-gradient-to-br from-emerald-600 to-green-500 border-transparent shadow-emerald-500/20' 
+                            : isRecycling
+                            ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/20 dark:to-emerald-900/10 border border-emerald-200/50 dark:border-emerald-800/30'
                             : `bg-white dark:bg-card-dark border ${colors.border}`;
                         
                         const textColor = isTracker ? 'text-white' : 'text-slate-900 dark:text-white';
                         const descColor = isTracker ? 'text-emerald-100' : 'text-slate-500 dark:text-slate-400';
-                        const iconBox = isTracker ? 'bg-white/20 text-white backdrop-blur-sm' : `${colors.bg} ${colors.icon}`;
-                        const badgeStyle = isTracker ? 'bg-white text-emerald-700' : `${colors.bg} ${colors.icon}`;
+                        const iconBox = isTracker ? 'bg-white/20 text-white backdrop-blur-sm' : isRecycling ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : `${colors.bg} ${colors.icon}`;
+                        const badgeStyle = isTracker ? 'bg-white text-emerald-700' : isRecycling ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : `${colors.bg} ${colors.icon}`;
 
                         return (
                             <button 
@@ -286,6 +279,11 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
                                 {isTracker && (
                                     <div className="absolute -right-6 -bottom-6 opacity-20 pointer-events-none transform rotate-12">
                                         <span className="material-symbols-outlined text-[100px] text-white">local_shipping</span>
+                                    </div>
+                                )}
+                                {isRecycling && (
+                                    <div className="absolute -right-6 -bottom-6 opacity-[0.08] pointer-events-none transform rotate-12 dark:opacity-[0.15]">
+                                        <span className="material-symbols-outlined text-[100px] text-emerald-600">recycling</span>
                                     </div>
                                 )}
 
@@ -304,7 +302,7 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
                                     <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${badgeStyle} flex items-center gap-1 shadow-sm`}>
                                         {isTracker && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping absolute opacity-75"></span>}
                                         {isTracker && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 relative"></span>}
-                                        {service.isFolder ? 'Pasta' : isTracker ? 'Ao Vivo' : 'Acesso'}
+                                        {service.isFolder ? 'Pasta' : isTracker ? 'Ao Vivo' : isRecycling ? 'IPTU Verde' : 'Acesso'}
                                     </span>
                                 </div>
                                 
@@ -320,12 +318,12 @@ const InfoServicesScreen: React.FC<InfoServicesScreenProps> = ({ onBack, onNavig
                                 </div>
 
                                 {/* Footer Action */}
-                                <div className={`w-full pt-2 mt-auto border-t flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity relative z-10 ${isTracker ? 'border-white/20' : 'border-slate-100 dark:border-slate-800'}`}>
-                                    <span className={`material-symbols-outlined text-[12px] ${isTracker ? 'text-emerald-100' : 'text-slate-400'}`}>
-                                        {service.isFolder ? 'folder_open' : isTracker ? 'location_on' : 'open_in_new'}
+                                <div className={`w-full pt-2 mt-auto border-t flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity relative z-10 ${isTracker ? 'border-white/20' : isRecycling ? 'border-emerald-200/40 dark:border-emerald-800/20' : 'border-slate-100 dark:border-slate-800'}`}>
+                                    <span className={`material-symbols-outlined text-[12px] ${isTracker ? 'text-emerald-100' : isRecycling ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                                        {service.isFolder ? 'folder_open' : isTracker ? 'location_on' : isRecycling ? 'eco' : 'open_in_new'}
                                     </span>
-                                    <span className={`text-[9px] font-bold uppercase tracking-wide truncate w-full text-left ${isTracker ? 'text-emerald-100' : 'text-slate-400'}`}>
-                                        {service.isFolder ? 'Abrir Categoria' : isTracker ? 'Rastrear Agora' : 'Acessar Serviço'}
+                                    <span className={`text-[9px] font-bold uppercase tracking-wide truncate w-full text-left ${isTracker ? 'text-emerald-100' : isRecycling ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                                        {service.isFolder ? 'Abrir Categoria' : isTracker ? 'Rastrear Agora' : isRecycling ? 'Participar' : 'Acessar Serviço'}
                                     </span>
                                 </div>
                             </button>

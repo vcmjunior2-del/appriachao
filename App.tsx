@@ -51,6 +51,7 @@ const AppContent: React.FC = () => {
   // Scroll direction state for dynamic collapsible BottomNav
   const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('up');
   const lastScrollTopRef = useRef<number>(0);
+  const accumulatedScrollRef = useRef<number>(0);
 
   // Scroll detection hook (with capture: true to intercept all nested container scrolling)
   useEffect(() => {
@@ -59,15 +60,36 @@ const AppContent: React.FC = () => {
       if (!target || typeof target.scrollTop !== 'number') return;
       
       const currentScroll = target.scrollTop;
+      const diff = currentScroll - lastScrollTopRef.current;
       
-      // Prevent jitter or micro-scrolling triggers
-      if (Math.abs(currentScroll - lastScrollTopRef.current) < 8) return;
-      
-      // If we scroll past 60px down, mark as down. If scrolling up, mark as up
-      if (currentScroll > lastScrollTopRef.current && currentScroll > 60) {
-        setScrollDirection('down');
-      } else if (currentScroll < lastScrollTopRef.current) {
+      // Auto-restore to full size at the top of the container
+      if (currentScroll < 40) {
         setScrollDirection('up');
+        accumulatedScrollRef.current = 0;
+        lastScrollTopRef.current = currentScroll;
+        return;
+      }
+
+      // Accumulate the scrolling distance
+      accumulatedScrollRef.current += diff;
+
+      // Hysteresis threshold limits (adjust these numbers to change sensitivity)
+      const shrinkThreshold = 120; // Needs to scroll down 120px to shrink the bar
+      const expandThreshold = -50;  // Needs to scroll up 50px to restore the bar
+
+      if (accumulatedScrollRef.current > shrinkThreshold) {
+        setScrollDirection('down');
+        accumulatedScrollRef.current = 0; // reset accumulator after state change
+      } else if (accumulatedScrollRef.current < expandThreshold) {
+        setScrollDirection('up');
+        accumulatedScrollRef.current = 0; // reset
+      }
+
+      // If they switch direction, let's reset the accumulated delta so they have to work to trigger the other state
+      const isCurrentlyDown = diff > 0;
+      const wasAccumulatingDown = accumulatedScrollRef.current > 0;
+      if (isCurrentlyDown !== wasAccumulatingDown) {
+        accumulatedScrollRef.current = 0;
       }
       
       lastScrollTopRef.current = currentScroll;
