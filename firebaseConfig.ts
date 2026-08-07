@@ -4,7 +4,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/analytics";
 import "firebase/compat/messaging"; // Import Messaging
-import { getFirestore } from "firebase/firestore"; // Import Firestore
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore"; // Import Firestore
 import { getStorage } from "firebase/storage"; // Import Storage
 
 // Your web app's Firebase configuration
@@ -21,7 +21,13 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = getFirestore(app); // Initialize Firestore
+// Initialize Firestore with auto-detect long polling and persistent local cache for offline reliability
+const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 const storage = getStorage(app); // Initialize Storage
 const analytics = firebase.analytics();
 const messaging = firebase.messaging(); // Initialize Messaging
