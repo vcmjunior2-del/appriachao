@@ -19,7 +19,7 @@ workflows:
           npm install
           npm run build
       - name: Projeto Android
-        script: bash scripts/native-setup.sh android
+        script: perl -pi -e 's/\r$//' scripts/native-setup.sh && bash scripts/native-setup.sh android
       - name: AAB assinado
         script: |
           cd android
@@ -49,7 +49,7 @@ workflows:
           npm install
           npm run build
       - name: Projeto iOS
-        script: bash scripts/native-setup.sh ios
+        script: perl -pi -e 's/\r$//' scripts/native-setup.sh && bash scripts/native-setup.sh ios
       - name: Assinatura
         script: xcode-project use-profiles
       - name: IPA
@@ -78,7 +78,7 @@ workflows:
           npm install
           npm run build
       - name: Projeto iOS
-        script: bash scripts/native-setup.sh ios
+        script: perl -pi -e 's/\r$//' scripts/native-setup.sh && bash scripts/native-setup.sh ios
       - name: App para simulador
         script: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug \
