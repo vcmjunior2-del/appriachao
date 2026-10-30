@@ -60,3 +60,36 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+
+  # Teste sem conta Apple (nada assinado):
+  #  - App.zip: envie em appetize.io para abrir num iPhone virtual pelo navegador
+  #  - App-sem-assinatura.ipa: instale no seu iPhone pelo Sideloadly (Windows) com seu Apple ID grátis
+  #    (vale 7 dias; push não funciona em conta grátis)
+  ios-simulator:
+    name: iOS Teste (sem conta Apple)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Dependências e build web
+        script: |
+          npm install
+          npm run build
+      - name: Projeto iOS
+        script: bash scripts/native-setup.sh ios
+      - name: App para simulador
+        script: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug \
+            -derivedDataPath build/sim ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build
+          cd build/sim/Build/Products/Debug-iphonesimulator && zip -qr "$CM_BUILD_DIR/App.zip" App.app
+      - name: IPA sem assinatura (iPhone)
+        script: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphoneos -configuration Release \
+            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO build
+          mkdir -p Payload && cp -R build/device/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qr App-sem-assinatura.ipa Payload
+    artifacts:
+      - App.zip
+      - App-sem-assinatura.ipa
