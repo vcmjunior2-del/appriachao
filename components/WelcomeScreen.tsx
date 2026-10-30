@@ -1,6 +1,10 @@
 import React from 'react';
+import { Browser } from '@capacitor/browser';
 import { useConfig } from '../contexts/ConfigContext';
 import { motion } from 'framer-motion';
+
+// Página pública (public/privacidade.html); endereço completo para abrir também no app instalado
+const PRIVACY_URL = 'https://e-riach-o.ai.studio/privacidade.html';
 
 interface WelcomeScreenProps {
   onLogin: () => void;
@@ -121,7 +125,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLogin, onRegister, onAd
             <motion.div variants={itemVariants} className="mt-6 flex flex-col items-center gap-2">
                 <p className="text-[10px] text-gray-400 text-center leading-normal">
                     Ao continuar, você concorda com nossos <br/>
-                    <span className="underline cursor-pointer hover:text-primary">Termos de Uso</span> e <span className="underline cursor-pointer hover:text-primary">Política de Privacidade</span>.
+                    <span onClick={() => Browser.open({ url: `${PRIVACY_URL}#termos` })} className="underline cursor-pointer hover:text-primary">Termos de Uso</span> e <span onClick={() => Browser.open({ url: PRIVACY_URL })} className="underline cursor-pointer hover:text-primary">Política de Privacidade</span>.
                 </p>
                 <button onClick={onAdminLogin} className="mt-2 text-[10px] font-bold text-gray-400 hover:text-primary uppercase tracking-wider">
                     Acesso Administrativo

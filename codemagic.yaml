@@ -31,6 +31,26 @@ workflows:
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
 
+  # Teste sem conta Google Play: APK que pode ser instalado direto em qualquer Android
+  android-teste:
+    name: Android Teste (APK sem conta)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      node: 22
+      java: 21
+    scripts:
+      - name: Dependências e build web
+        script: |
+          npm install
+          npm run build
+      - name: Projeto Android
+        script: perl -pi -e 's/\r$//' scripts/native-setup.sh && bash scripts/native-setup.sh android
+      - name: APK de teste
+        script: cd android && ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/debug/*.apk
+
   ios-workflow:
     name: iOS (App Store)
     max_build_duration: 60

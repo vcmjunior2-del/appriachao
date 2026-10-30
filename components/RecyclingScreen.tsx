@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, onSnapshot, query, where, updateDoc, doc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from '../firebaseConfig';
+import { db, auth, isAdminUser } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { useAlert } from '../contexts/AlertContext';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -823,7 +823,8 @@ const RecyclingScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Dynamic Sandbox Role Toggle */}
+        {/* Dynamic Sandbox Role Toggle: a Central de Coleta usa dados simulados, só o administrador vê */}
+        {isAdminUser(currentUser) && (
         <div className="flex bg-slate-100 dark:bg-slate-850 p-1 rounded-xl text-xs font-semibold gap-1 shrink-0">
           <button 
             onClick={() => setActiveTab('morador')}
@@ -838,6 +839,7 @@ const RecyclingScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             Central de Coleta
           </button>
         </div>
+        )}
       </header>
 
       {/* Main Container */}

@@ -5,6 +5,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { auth, db, storage } from '../firebaseConfig';
 import { UserItem, Screen } from '../types';
 import { useAlert } from '../contexts/AlertContext';
+import { Browser } from '@capacitor/browser';
 
 interface ProfileScreenProps {
   onLogout: () => void;
@@ -149,7 +150,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onNavigate }) =
       </div>
       <div className="px-4 mt-8 mb-4">
         <button onClick={handleLogout} className="w-full bg-white dark:bg-[#1a2230] rounded-2xl shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 p-4 flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"><span className="material-symbols-outlined text-red-500 dark:text-red-400 group-hover:scale-110 transition-transform">logout</span><span className="text-red-500 dark:text-red-400 font-semibold text-sm">Sair da Conta</span></button>
-        <button onClick={handleDeleteAccount} className="w-full mt-3 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors">Excluir minha conta</button>
+        <button onClick={() => Browser.open({ url: 'https://e-riach-o.ai.studio/privacidade.html' })} className="w-full mt-3 text-xs font-medium text-slate-400 hover:text-primary transition-colors">Política de Privacidade e Termos de Uso</button>
+        <button onClick={handleDeleteAccount} className="w-full mt-2 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors">Excluir minha conta</button>
         <p className="text-center text-slate-400 dark:text-slate-600 text-[10px] mt-4 font-mono">ID: {currentUser?.uid.slice(0,8)} • v2.4.0</p>
       </div>
     </div>
