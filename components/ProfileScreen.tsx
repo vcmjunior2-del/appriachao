@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { auth, db, storage } from '../firebaseConfig';
 import { UserItem, Screen } from '../types';
 import { useAlert } from '../contexts/AlertContext';
@@ -12,20 +11,22 @@ interface ProfileScreenProps {
   onNavigate: (screen: Screen) => void;
 }
 
+let cachedUserData: UserItem | null = null;
+
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onNavigate }) => {
   const { currentUser } = useAuth();
-  const [userData, setUserData] = useState<UserItem | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<UserItem | null>(cachedUserData);
+  const [loading, setLoading] = useState(cachedUserData === null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { showAlert } = useAlert();
 
   // Form State
-  const [editName, setEditName] = useState('');
-  const [editStreet, setEditStreet] = useState('');
-  const [editNumber, setEditNumber] = useState('');
-  const [editNeighborhood, setEditNeighborhood] = useState('');
-  const [editCity, setEditCity] = useState('');
+  const [editName, setEditName] = useState(cachedUserData?.name || '');
+  const [editStreet, setEditStreet] = useState(cachedUserData?.street || '');
+  const [editNumber, setEditNumber] = useState(cachedUserData?.number || '');
+  const [editNeighborhood, setEditNeighborhood] = useState(cachedUserData?.neighborhood || '');
+  const [editCity, setEditCity] = useState(cachedUserData?.city || 'Riachão do Jacuípe');
 
   // Photo Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +38,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onNavigate }) =
       if (docSnap.exists()) {
         const data = docSnap.data() as UserItem;
         setUserData(data);
+        cachedUserData = data;
         setEditName(data.name || '');
         setEditStreet(data.street || '');
         setEditNumber(data.number || '');
@@ -50,6 +52,28 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onNavigate }) =
 
   const handleLogout = async () => {
     try { await auth.signOut(); onLogout(); } catch (error) { console.error("Error logging out", error); }
+  };
+
+  // Exclusão de conta pelo próprio cidadão (exigida pela App Store e pelo Google Play).
+  // Apaga o cadastro, a foto de perfil e o login; as solicitações enviadas ficam com a Prefeitura.
+  const handleDeleteAccount = async () => {
+    const user = auth.currentUser;
+    if (!user || !window.confirm('Excluir sua conta? Seu cadastro e sua foto serão apagados. Esta ação não pode ser desfeita.')) return;
+    // O Firebase só permite excluir com login recente (poucos minutos)
+    const signedInAt = new Date(user.metadata.lastSignInTime || 0).getTime();
+    if (Date.now() - signedInAt > 4 * 60 * 1000) {
+      showAlert({ message: 'Por segurança, saia e entre novamente na sua conta. Depois, toque em "Excluir minha conta".', type: 'warning' });
+      return;
+    }
+    try {
+      await deleteObject(ref(storage, `profile_photos/${user.uid}`)).catch(() => {});
+      await deleteDoc(doc(db, "users", user.uid));
+      await user.delete();
+      onLogout();
+    } catch (error) {
+      console.error("Error deleting account", error);
+      showAlert({ message: 'Não foi possível excluir a conta. Tente novamente.', type: 'error' });
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -125,6 +149,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, onNavigate }) =
       </div>
       <div className="px-4 mt-8 mb-4">
         <button onClick={handleLogout} className="w-full bg-white dark:bg-[#1a2230] rounded-2xl shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 p-4 flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"><span className="material-symbols-outlined text-red-500 dark:text-red-400 group-hover:scale-110 transition-transform">logout</span><span className="text-red-500 dark:text-red-400 font-semibold text-sm">Sair da Conta</span></button>
+        <button onClick={handleDeleteAccount} className="w-full mt-3 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors">Excluir minha conta</button>
         <p className="text-center text-slate-400 dark:text-slate-600 text-[10px] mt-4 font-mono">ID: {currentUser?.uid.slice(0,8)} • v2.4.0</p>
       </div>
     </div>

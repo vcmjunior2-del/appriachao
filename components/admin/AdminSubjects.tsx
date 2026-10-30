@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, deleteDoc, setDoc, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebaseConfig';
+import { db, storage, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { OccurrenceSubject, Secretariat } from '../../types';
 
@@ -25,7 +25,7 @@ const AdminSubjects: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD: Allow strict admin email OR anonymous (demo)
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const unsubSub = onSnapshot(collection(db, "occurrence_subjects"), 
             s => setSubjects(s.docs.map(d => ({id: d.id, ...d.data()} as OccurrenceSubject))),

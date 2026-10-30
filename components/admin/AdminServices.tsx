@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, deleteDoc, setDoc, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebaseConfig';
+import { db, storage, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { ServiceTypeDefinition, Secretariat, OccurrenceSubject } from '../../types';
 
@@ -26,7 +26,7 @@ const AdminServices: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const unsubServ = onSnapshot(collection(db, "service_types"), 
             s => setServiceTypes(s.docs.map(d => ({id: d.id, ...d.data()} as ServiceTypeDefinition))),

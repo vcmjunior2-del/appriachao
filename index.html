@@ -137,9 +137,9 @@
         display: none !important;
       }
 
-      /* --- Fluid Page Transitions --- */
+      /* --- Fluid Page & Element Mount/Unmount Transitions --- */
       .page-enter {
-        animation: pageEnter 0.35s cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+        animation: pageEnter 0.35s cubic-bezier(0.2, 0.6, 0.2, 1) backwards;
         will-change: opacity, transform;
       }
       
@@ -150,9 +150,98 @@
         }
         to {
           opacity: 1;
-          transform: translateY(0);
+          transform: none;
         }
       }
+
+      @keyframes elementHeaderMount {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @keyframes elementStaggerMount {
+        from {
+          opacity: 0;
+          transform: translateY(16px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      /* Aplica efeito suave em cascata em todos os elementos internos ao montar a página */
+      .screen-stagger-scope header,
+      .screen-stagger-scope > div > .sticky.top-0 {
+        animation: elementHeaderMount 0.34s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+      }
+
+      .screen-stagger-scope main > *:not(.leaflet-container),
+      .screen-stagger-scope section > *:not(.leaflet-container),
+      .screen-stagger-scope .grid > *:not(.leaflet-container),
+      .screen-stagger-scope .space-y-2 > *:not(.leaflet-container),
+      .screen-stagger-scope .space-y-3 > *:not(.leaflet-container),
+      .screen-stagger-scope .space-y-4 > *:not(.leaflet-container),
+      .screen-stagger-scope .space-y-6 > *:not(.leaflet-container),
+      .screen-stagger-scope form > *:not(.leaflet-container) {
+        animation: elementStaggerMount 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+      }
+
+      .screen-stagger-scope main > *:nth-child(1),
+      .screen-stagger-scope .grid > *:nth-child(1),
+      .screen-stagger-scope .space-y-3 > *:nth-child(1),
+      .screen-stagger-scope .space-y-4 > *:nth-child(1),
+      .screen-stagger-scope form > *:nth-child(1) { animation-delay: 0.02s; }
+
+      .screen-stagger-scope main > *:nth-child(2),
+      .screen-stagger-scope .grid > *:nth-child(2),
+      .screen-stagger-scope .space-y-3 > *:nth-child(2),
+      .screen-stagger-scope .space-y-4 > *:nth-child(2),
+      .screen-stagger-scope form > *:nth-child(2) { animation-delay: 0.05s; }
+
+      .screen-stagger-scope main > *:nth-child(3),
+      .screen-stagger-scope .grid > *:nth-child(3),
+      .screen-stagger-scope .space-y-3 > *:nth-child(3),
+      .screen-stagger-scope .space-y-4 > *:nth-child(3),
+      .screen-stagger-scope form > *:nth-child(3) { animation-delay: 0.08s; }
+
+      .screen-stagger-scope main > *:nth-child(4),
+      .screen-stagger-scope .grid > *:nth-child(4),
+      .screen-stagger-scope .space-y-3 > *:nth-child(4),
+      .screen-stagger-scope .space-y-4 > *:nth-child(4),
+      .screen-stagger-scope form > *:nth-child(4) { animation-delay: 0.11s; }
+
+      .screen-stagger-scope main > *:nth-child(5),
+      .screen-stagger-scope .grid > *:nth-child(5),
+      .screen-stagger-scope .space-y-3 > *:nth-child(5),
+      .screen-stagger-scope .space-y-4 > *:nth-child(5),
+      .screen-stagger-scope form > *:nth-child(5) { animation-delay: 0.14s; }
+
+      .screen-stagger-scope main > *:nth-child(6),
+      .screen-stagger-scope .grid > *:nth-child(6),
+      .screen-stagger-scope .space-y-3 > *:nth-child(6),
+      .screen-stagger-scope .space-y-4 > *:nth-child(6),
+      .screen-stagger-scope form > *:nth-child(6) { animation-delay: 0.17s; }
+
+      .screen-stagger-scope main > *:nth-child(7),
+      .screen-stagger-scope .grid > *:nth-child(7),
+      .screen-stagger-scope .space-y-3 > *:nth-child(7),
+      .screen-stagger-scope .space-y-4 > *:nth-child(7) { animation-delay: 0.20s; }
+
+      .screen-stagger-scope main > *:nth-child(8),
+      .screen-stagger-scope .grid > *:nth-child(8),
+      .screen-stagger-scope .space-y-3 > *:nth-child(8),
+      .screen-stagger-scope .space-y-4 > *:nth-child(8) { animation-delay: 0.23s; }
+
+      .screen-stagger-scope .grid > *:nth-child(n+9),
+      .screen-stagger-scope .space-y-3 > *:nth-child(n+9),
+      .screen-stagger-scope .space-y-4 > *:nth-child(n+9) { animation-delay: 0.26s; }
     </style>
   <script type="importmap">
 {

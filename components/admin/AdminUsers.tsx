@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import { db, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserItem } from '../../types';
 
@@ -13,7 +13,7 @@ const AdminUsers: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const unsub = onSnapshot(collection(db, "users"), (snap) => {
             setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() } as UserItem)));

@@ -6,6 +6,12 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https'
+  },
+  plugins: {
+    FirebaseMessaging: {
+      // Com o app aberto, o aviso aparece dentro do app (evita notificação duplicada)
+      presentationOptions: []
+    }
   }
 };
 

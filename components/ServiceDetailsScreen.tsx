@@ -16,9 +16,10 @@ declare global {
 interface ServiceDetailsScreenProps {
   onBack: () => void;
   service: ServiceTypeDefinition | null;
+  registerBackHandler?: (handler: (() => boolean) | null) => void;
 }
 
-const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, service }) => {
+const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, service, registerBackHandler }) => {
   const { currentUser } = useAuth();
   
   // --- Form States ---
@@ -39,6 +40,32 @@ const ServiceDetailsScreen: React.FC<ServiceDetailsScreenProps> = ({ onBack, ser
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(''); // Feedback for user
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Sync back handler with modals
+  useEffect(() => {
+    if (registerBackHandler) {
+      if (isMapModalOpen) {
+        registerBackHandler(() => {
+          setIsMapModalOpen(false);
+          return true;
+        });
+      } else if (showSuccessModal) {
+        registerBackHandler(() => {
+          setShowSuccessModal(false);
+          onBack();
+          return true;
+        });
+      } else {
+        registerBackHandler(null);
+      }
+    }
+  }, [isMapModalOpen, showSuccessModal, registerBackHandler, onBack]);
+
+  useEffect(() => {
+    return () => {
+      registerBackHandler?.(null);
+    };
+  }, [registerBackHandler]);
 
   // --- Refs ---
   const previewMapRef = useRef<any>(null);

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, deleteDoc, setDoc, addDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import { db, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { Secretariat, ServiceTypeDefinition } from '../../types';
 
@@ -16,7 +16,7 @@ const AdminSecretariats: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const unsubSec = onSnapshot(collection(db, "secretariats"), 
             s => setSecretariats(s.docs.map(d => ({id: d.id, ...d.data()} as Secretariat))),

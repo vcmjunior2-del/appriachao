@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, limit, doc, setDoc, deleteDoc, addDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import { db, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { SentimentLog, ImprovementArea } from '../../types';
 
@@ -14,7 +14,7 @@ const AdminSentiment: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         // Fetch Logs (Last 100 for performance in demo)
         const qLogs = query(collection(db, "sentiment_logs"), orderBy("date", "desc"), limit(200));

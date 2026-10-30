@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { CityPlace, CityPlaceSubCategory } from '../types';
@@ -42,6 +41,7 @@ let cachedPlaces: CityPlace[] | null = null;
 let cachedSubCats: CityPlaceSubCategory[] | null = null;
 
 const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCategory }) => {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState(initialCategory || 'Todos');
   const [activeSubCategoryId, setActiveSubCategoryId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,6 +52,16 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
   useEffect(() => {
     setActiveSubCategoryId(null);
   }, [activeCategory]);
+
+  // Sempre posiciona no topo ao trocar de categoria, pasta ou modo de visualização
+  useEffect(() => {
+    const parentScroll = rootRef.current?.parentElement;
+    if (parentScroll) {
+      parentScroll.scrollTo({ top: 0, behavior: 'instant' });
+      parentScroll.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeCategory, activeSubCategoryId, viewMode]);
 
   // Init with cache
   const [places, setPlaces] = useState<CityPlace[]>(cachedPlaces || []);
@@ -134,7 +144,7 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
   };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-6 font-display overflow-hidden">
+    <div ref={rootRef} className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-6 font-display overflow-hidden">
        {/* Header */}
        <header className="sticky top-0 z-20 bg-white/95 dark:bg-card-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-colors duration-200">
         <div className="flex items-center p-4 justify-between h-16">
@@ -200,7 +210,7 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto no-scrollbar">
+      <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto no-scrollbar screen-stagger-scope">
         {loading ? (
              <div className="flex flex-col items-center justify-center pt-20 gap-3">
                  <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
@@ -226,7 +236,7 @@ const CityGuideScreen: React.FC<CityGuideScreenProps> = ({ onBack, initialCatego
                 <p>Nenhum local encontrado.</p>
             </div>
         ) : (
-            <div className="grid grid-cols-1 gap-4">
+            <div key={`${activeCategory}-${activeSubCategoryId || 'root'}`} className="grid grid-cols-1 gap-4">
                 {/* Folders */}
                 {subCategoriesToDisplay.map(subCat => (
                     <button 

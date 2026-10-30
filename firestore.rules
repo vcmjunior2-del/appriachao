@@ -9,100 +9,121 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    // Admin = conta de e-mail institucional COM e-mail verificado.
+    // Login anônimo (convidado) NUNCA é admin.
+    // Para adicionar outro administrador, inclua o e-mail na lista abaixo,
+    // em storage.rules e em ADMIN_EMAILS no arquivo firebaseConfig.ts.
     function isAdmin() {
-      return isAuthenticated() && 
-             (request.auth.token.get('anonymous', false) == true || 
-              request.auth.token.firebase.sign_in_provider == 'anonymous' || 
-              request.auth.token.get('email', '') == 'administracao@riachaodojacuipe.ba.gov.br');
+      return isAuthenticated() &&
+             request.auth.token.get('email_verified', false) == true &&
+             request.auth.token.get('email', '') in [
+               'administracao@riachaodojacuipe.ba.gov.br'
+             ];
     }
 
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // --- Configurações (Leitura Pública) ---
-    // Usando wildcard recursivo para garantir acesso a qualquer documento/subcoleção
+    // O documento novo pertence a quem está criando
+    function createsOwnDoc() {
+      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // A atualização só mexe nos campos listados
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // --- Configurações e conteúdo público (leitura pública, escrita só admin) ---
     
     match /app_config/{document=**} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /secretariats/{document=**} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /service_types/{document=**} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /info_services/{document=**} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /occurrence_subjects/{document=**} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /improvement_areas/{document=**} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /city_places/{placeId} {
       allow read: if true; 
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /city_place_subcategories/{subCatId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
     
     match /news/{newsId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
-    // --- Frota / GPS (CORREÇÃO DE PERMISSÃO) ---
+    // --- Frota / GPS ---
     match /garbage_trucks/{truckId} {
       allow read: if true; // Qualquer um pode ver no mapa
-      // Permitimos 'isAuthenticated' ao invés de apenas 'isAdmin' para que o login "admin/admin" (Anônimo) funcione na demonstração.
-      allow write: if isAuthenticated(); 
+      allow write: if isAdmin();
     }
 
-    // --- Dados de Usuário ---
+    // --- Dados de Usuário (contêm CPF e endereço: cada um vê só o seu) ---
 
     match /users/{userId} {
-      // Admin lê tudo. Dono lê o seu.
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow read: if isOwner(userId) || isAdmin();
+      // Cadastro: só o próprio usuário, sempre como cidadão comum
+      allow create: if isOwner(userId) &&
+                       request.resource.data.get('role', 'citizen') == 'citizen' &&
+                       request.resource.data.get('isVerified', false) == false;
+      // O cidadão não pode alterar o próprio papel, status ou verificação
+      allow update: if isAdmin() ||
+                       (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['role', 'status', 'isVerified', 'id', 'dateJoined']));
+      // O próprio cidadão pode excluir a conta (exigência das lojas de apps)
+      allow delete: if isAdmin() || isOwner(userId);
     }
 
     // --- Solicitações (Requests) ---
 
     match /requests/{requestId} {
-      allow create: if isAuthenticated();
-      
-      allow read: if isAuthenticated();
-      
-      allow update: if isAuthenticated();
-      
-      allow delete: if isAuthenticated();
+      allow create: if createsOwnDoc() && request.resource.data.status == 'Aberto';
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
     // --- Notificações ---
 
     match /notifications/{notificationId} {
       allow read: if isAdmin() || (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all'));
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        // Cidadão marca a própria notificação como lida
+        (isAuthenticated() && resource.data.userId == request.auth.uid && onlyChanges(['read'])) ||
+        // Cidadão se adiciona à lista "readBy" de um aviso geral
+        (isAuthenticated() && resource.data.userId == 'all' && onlyChanges(['readBy']) &&
+          request.resource.data.readBy.toSet().difference(resource.data.get('readBy', []).toSet()).hasOnly([request.auth.uid]));
     }
 
     // --- Sentimento ---
@@ -114,23 +135,34 @@ service cloud.firestore {
 
     // --- TFD Appointments ---
     match /tfd_appointments/{appointmentId} {
-      allow create: if isAuthenticated();
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if isAdmin();
+      allow create: if createsOwnDoc() && request.resource.data.status == 'Pendente';
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     // --- Coleta Seletiva (Reciclagem e EcoPontos) ---
+    // Lançamentos de pontos são feitos pelo agente/prefeitura (admin).
     match /recycling_profiles/{profileId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAdmin() || isOwner(profileId);
+      // O cidadão vincula o imóvel, mas não pode dar pontos a si mesmo
+      allow create: if isAdmin() ||
+                       (isOwner(profileId) && request.resource.data.get('ecoPoints', 0) == 0 &&
+                        request.resource.data.get('totalBags', 0) == 0);
+      allow update: if isAdmin() ||
+                       (isOwner(profileId) && !request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['ecoPoints', 'totalBags', 'userId']));
+      allow delete: if isAdmin();
     }
     
     match /recycling_transactions/{transactionId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.citizenId == request.auth.uid);
+      allow write: if isAdmin();
     }
     
     match /recycling_bulk_pickups/{pickupId} {
-      allow read, write: if isAuthenticated();
+      allow create: if createsOwnDoc() && request.resource.data.status == 'Pendente';
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
     
     // Regra Padrão de Bloqueio (Segurança)

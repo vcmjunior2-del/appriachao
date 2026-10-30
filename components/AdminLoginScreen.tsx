@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { auth } from '../firebaseConfig';
+import { auth, ADMIN_EMAILS } from '../firebaseConfig';
 
 interface AdminLoginScreenProps {
   onBack: () => void;
@@ -21,22 +21,22 @@ const AdminLoginScreen: React.FC<AdminLoginScreenProps> = ({ onBack, onLoginSucc
     const emailInput = email.trim();
 
     try {
-      // Demo Bypass
-      if (emailInput === 'admin' && password === 'admin') {
-          await auth.signInAnonymously();
-          onLoginSuccess();
-          return;
-      }
-
       const userCredential = await auth.signInWithEmailAndPassword(emailInput, password);
       const user = userCredential.user;
 
-      // Verificação Estrita de Admin (Único e-mail autorizado)
-      const allowedEmail = 'administracao@riachaodojacuipe.ba.gov.br';
-
-      if (user?.email !== allowedEmail) {
+      // Verificação Estrita de Admin (somente e-mails autorizados)
+      if (!user?.email || !ADMIN_EMAILS.includes(user.email)) {
           await auth.signOut();
           setError('Acesso Negado: Esta conta não possui privilégios administrativos.');
+          setLoading(false);
+          return;
+      }
+
+      // As regras do Firebase só aceitam admin com e-mail verificado
+      if (!user.emailVerified) {
+          await user.sendEmailVerification();
+          await auth.signOut();
+          setError(`E-mail ainda não verificado. Enviamos um link de confirmação para ${user.email}. Abra o link e entre novamente.`);
           setLoading(false);
           return;
       }
@@ -91,7 +91,7 @@ const AdminLoginScreen: React.FC<AdminLoginScreenProps> = ({ onBack, onLoginSucc
                         <span className="material-symbols-outlined text-[22px]">alternate_email</span>
                     </div>
                     <input 
-                        type="text" 
+                        type="email" 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -135,12 +135,6 @@ const AdminLoginScreen: React.FC<AdminLoginScreenProps> = ({ onBack, onLoginSucc
         </form>
 
         <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-800 flex flex-col items-center gap-4">
-            <button 
-                onClick={() => { setEmail('admin'); setPassword('admin'); }}
-                className="text-xs text-slate-400 hover:text-primary transition-colors underline"
-            >
-                Usar Credenciais de Demonstração
-            </button>
             <button 
                 onClick={onBack}
                 className="text-slate-400 hover:text-primary text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 group"

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, deleteDoc, setDoc, addDoc, query, where } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebaseConfig';
+import { db, storage, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { InfoServiceDefinition } from '../../types';
 
@@ -67,7 +67,7 @@ const AdminInfoServices: React.FC<AdminInfoServicesProps> = ({ viewMode }) => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const unsub = onSnapshot(collection(db, "info_services"), (snap) => {
             const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as InfoServiceDefinition));

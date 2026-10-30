@@ -9,6 +9,7 @@ import NewsModal from './NewsModal';
 
 interface HomeScreenProps {
   onNavigate: (screen: Screen, params?: any) => void;
+  registerBackHandler?: (handler: (() => boolean) | null) => void;
 }
 
 // --- Global Cache for Home ---
@@ -16,7 +17,7 @@ let cachedNews: NewsItem[] | null = null;
 let cachedWeather: { temp: number; code: number; isDay: number } | null = null;
 let cachedImprovementAreas: ImprovementArea[] | null = null;
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, registerBackHandler }) => {
   const { currentUser } = useAuth(); 
   const { config } = useConfig(); 
   const newsScrollRef = useRef<HTMLDivElement>(null);
@@ -41,6 +42,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   // --- News State (Init with Cache) ---
   const [newsItems, setNewsItems] = useState<NewsItem[]>(cachedNews || []);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+
+  // Sync back handler with news modal
+  useEffect(() => {
+    if (registerBackHandler) {
+      if (selectedNews) {
+        registerBackHandler(() => {
+          setSelectedNews(null);
+          return true;
+        });
+      } else {
+        registerBackHandler(null);
+      }
+    }
+  }, [selectedNews, registerBackHandler]);
+
+  useEffect(() => {
+    return () => {
+      registerBackHandler?.(null);
+    };
+  }, [registerBackHandler]);
 
   const logoUrl = config?.logoUrl || "";
 

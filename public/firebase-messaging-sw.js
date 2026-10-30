@@ -1,9 +1,10 @@
-import { initializeApp } from "firebase/app";
-import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
+// Service worker do Firebase Cloud Messaging (push com o app fechado no navegador).
+// Arquivos da pasta public não passam pelo Vite, então usamos a versão "compat" via importScripts.
+importScripts('https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.7.0/firebase-messaging-compat.js');
 
-// Initialize Firebase in the service worker
-const firebaseConfig = {
-  // You need to copy the same config from firebaseConfig.ts here
+// Mesma configuração de firebaseConfig.ts
+firebase.initializeApp({
   apiKey: "AIzaSyABQIWdQw16ZpP3NSMT7injmOEQzIcPTVM",
   authDomain: "appriachao.firebaseapp.com",
   projectId: "appriachao",
@@ -11,18 +12,22 @@ const firebaseConfig = {
   messagingSenderId: "39795669276",
   appId: "1:39795669276:web:e8cd3feb308de6bba322d9",
   measurementId: "G-W6HSJ4BR2H"
-};
+});
 
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+// As mensagens enviadas pela Cloud Function têm o bloco "notification",
+// que o próprio SDK exibe com o app fechado. Não chamar showNotification aqui
+// para não aparecer a notificação duplicada.
+firebase.messaging();
 
-onBackgroundMessage(messaging, (payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification?.title || 'Notificação';
-  const notificationOptions = {
-    body: payload.notification?.body,
-    icon: '/icon-192.png'
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
+// Ao tocar na notificação, abre (ou traz para frente) o aplicativo
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if ('focus' in client) return client.focus();
+      }
+      return clients.openWindow('/');
+    })
+  );
 });

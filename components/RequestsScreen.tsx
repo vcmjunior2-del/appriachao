@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Screen, RequestItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -10,15 +9,27 @@ interface RequestsScreenProps {
   onSelectRequest: (requestId: string) => void; 
 }
 
+let cachedRequests: RequestItem[] | null = null;
+
 const RequestsScreen: React.FC<RequestsScreenProps> = ({ onBack, onSelectRequest }) => {
   const { currentUser } = useAuth();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'Em Andamento' | 'Histórico'>('Em Andamento');
   const [filter, setFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
-  const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState<RequestItem[]>(cachedRequests || []);
+  const [loading, setLoading] = useState(cachedRequests === null);
 
   const filters = ['Todos', 'Iluminação', 'Limpeza', 'Obras', 'Saúde'];
+
+  useEffect(() => {
+    const parentScroll = rootRef.current?.parentElement;
+    if (parentScroll) {
+      parentScroll.scrollTo({ top: 0, behavior: 'instant' });
+      parentScroll.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeTab, filter]);
 
   // --- Helper: Format Timestamp ---
   const formatDate = (timestamp: any) => {
@@ -41,7 +52,7 @@ const RequestsScreen: React.FC<RequestsScreenProps> = ({ onBack, onSelectRequest
   // --- Fetch Requests ---
   useEffect(() => {
     if (!currentUser) return;
-    setLoading(true);
+    if (!cachedRequests) setLoading(true);
 
     const processSnapshot = (snapshot: any) => {
         // Sort documents client-side to avoid Firestore composite index requirement
@@ -69,6 +80,7 @@ const RequestsScreen: React.FC<RequestsScreenProps> = ({ onBack, onSelectRequest
             } as RequestItem;
         });
         setRequests(fetchedRequests);
+        cachedRequests = fetchedRequests;
         setLoading(false);
     };
 
@@ -119,7 +131,7 @@ const RequestsScreen: React.FC<RequestsScreenProps> = ({ onBack, onSelectRequest
   });
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-16 font-display">
+    <div ref={rootRef} className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark pb-16 font-display">
       
       {/* Modern Header with Banner (Matching InfoServicesScreen) */}
       <div className="bg-white dark:bg-card-dark shadow-sm border-b border-gray-100 dark:border-gray-800 pb-2 z-10">

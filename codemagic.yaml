@@ -1,33 +1,62 @@
+# Builds para as lojas. Os projetos nativos são gerados a cada build por scripts/native-setup.sh.
+# Antes do primeiro build, no painel do Codemagic:
+#  - Android: Team settings > Code signing identities > Android keystores: chave com o nome "eriachao_keystore"
+#  - iOS: Team settings > Integrations > App Store Connect: chave de API com o nome "Codemagic",
+#         e em Code signing identities: certificado de distribuição + perfil App Store de com.riachao.cidadao
 workflows:
-  ios-workflow:
-    name: iOS App Store Build
+  android-workflow:
+    name: Android (Google Play)
     max_build_duration: 60
-    instance_type: mac_mini_m1
+    instance_type: linux_x2
     environment:
-      node: latest
-      xcode: latest
-      cocoapods: default
+      node: 22
+      java: 21
+      android_signing:
+        - eriachao_keystore
     scripts:
-      - name: Install dependencies
+      - name: Dependências e build web
         script: |
           npm install
-      - name: Build web project
-        script: |
           npm run build
-      - name: Capacitor Sync
+      - name: Projeto Android
+        script: bash scripts/native-setup.sh android
+      - name: AAB assinado
         script: |
-          npx cap sync ios
-      - name: Build iOS native
+          cd android
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$CM_KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+
+  ios-workflow:
+    name: iOS (App Store)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic
+    environment:
+      node: 22
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.riachao.cidadao
+    scripts:
+      - name: Dependências e build web
         script: |
-          # Este comando compila o projeto nativo no Mac Virtual
-          cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath App.xcarchive archive
+          npm install
+          npm run build
+      - name: Projeto iOS
+        script: bash scripts/native-setup.sh ios
+      - name: Assinatura
+        script: xcode-project use-profiles
+      - name: IPA
+        script: xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
-        auth_method: app_store_connect_api_key
-        # Você configurará estas chaves secretas no painel do Codemagic
-        api_key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        key_content: $APP_STORE_CONNECT_PRIVATE_KEY
+        auth: integration
+        submit_to_testflight: true

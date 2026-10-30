@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+import { db, isAdminUser } from '../firebaseConfig';
 import { RequestItem, RequestHistoryItem, Secretariat } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -235,7 +235,7 @@ const RequestTrackingScreen: React.FC<RequestTrackingScreenProps> = ({ requestId
   const secretariatName = getSecretariatName(request.department);
   
   // Logic: Allow deletion if User is Admin OR User is Owner
-  const isAdmin = currentUser?.email === 'administracao@riachaodojacuipe.ba.gov.br' || currentUser?.isAnonymous;
+  const isAdmin = isAdminUser(currentUser);
   const isOwner = currentUser?.uid === request.userId;
   const canDelete = isAdmin || isOwner;
 

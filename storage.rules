@@ -3,25 +3,34 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Função auxiliar para verificar admin
+    // Mesma regra de admin do firestore.rules: e-mail institucional verificado.
     function isAdmin() {
-      // Relaxed for testing/demo purposes to avoid permission errors
-      return request.auth != null; 
+      return request.auth != null &&
+             request.auth.token.get('email_verified', false) == true &&
+             request.auth.token.get('email', '') in [
+               'administracao@riachaodojacuipe.ba.gov.br'
+             ];
+    }
+
+    // Cidadão só envia imagens de até 10 MB
+    function isSmallImage() {
+      return request.resource.size < 10 * 1024 * 1024 &&
+             request.resource.contentType.matches('image/.*');
     }
 
     // Pasta de evidências (fotos de ocorrências)
     match /evidence/{userId}/{allPaths=**} {
       allow read: if true; 
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin() || (request.auth != null && request.auth.uid == userId && isSmallImage());
     }
 
     // Pasta de fotos de perfil
     match /profile_photos/{userId} {
       allow read: if true;
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin() || (request.auth != null && request.auth.uid == userId && isSmallImage());
     }
 
-    // Pasta de ícones de serviços e assuntos (Upload pelo Admin, Leitura pública)
+    // Conteúdo gerenciado pelo painel (upload só admin, leitura pública)
     match /service_icons/{allPaths=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -32,18 +41,28 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    // Guia da Cidade
     match /city_places/{allPaths=**} {
       allow read: if true; 
       allow write: if isAdmin(); 
     }
 
-    // Destaques / Notícias
+    match /city_place_icons/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /logos/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /news_images/{allPaths=**} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
     match /news_videos/{allPaths=**} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
     
     // Bloqueio padrão

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, addDoc, getDocs, where } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import { db, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { RequestItem, UserItem, Secretariat, ServiceTypeDefinition } from '../../types';
 
@@ -25,7 +25,7 @@ const AdminOverview: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD: Prevent listeners if not admin or anonymous admin
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const unsubReqs = onSnapshot(collection(db, "requests"), (snap) => {
             const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() } as RequestItem));

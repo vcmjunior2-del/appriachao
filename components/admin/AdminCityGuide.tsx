@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, deleteDoc, setDoc, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebaseConfig';
+import { db, storage, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { CityPlace, CityPlaceSubCategory } from '../../types';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
@@ -74,7 +74,7 @@ const AdminCityGuide: React.FC = () => {
     const categories = ['Úteis', 'Saúde', 'Educação', 'Hospedagem', 'Gastronomia', 'Comércio', 'Lazer', 'Religião'];
 
     useEffect(() => {
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
         
         const unsubPlaces = onSnapshot(collection(db, "city_places"), (snap) => {
             setPlaces(snap.docs.map(d => ({ id: d.id, ...d.data() } as CityPlace)));

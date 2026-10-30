@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, deleteDoc, setDoc, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebaseConfig';
+import { db, storage, isAdminUser } from '../../firebaseConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { NewsItem } from '../../types';
 
@@ -30,7 +30,7 @@ const AdminNews: React.FC = () => {
 
     useEffect(() => {
         // AUTH GUARD
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const q = query(collection(db, "news"), orderBy("date", "desc"));
         const unsub = onSnapshot(q, (snap) => {

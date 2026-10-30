@@ -1,76 +1,94 @@
-const functions = require('firebase-functions');
+// Cloud Functions de 2ª geração (a 1ª geração exige uma conta de serviço que este projeto não tem)
+const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { setGlobalOptions } = require('firebase-functions/v2');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-exports.sendNotificationOnCreate = functions.firestore
-    .document('notifications/{notificationId}')
-    .onCreate(async (snap, context) => {
-        const newValue = snap.data();
-        
-        // Se a notificação for para 'all', envia para o tópico 'all'
+// Mesma região do banco Firestore (nam5 = Estados Unidos)
+setGlobalOptions({ region: 'us-central1' });
+
+// Erros que indicam token inválido (app desinstalado, permissão revogada etc.)
+const INVALID_TOKEN_ERRORS = [
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token',
+    'messaging/invalid-argument'
+];
+
+// Monta a mensagem com as opções de cada plataforma (navegador, Android e iPhone)
+const buildMessage = (title, body, notificationId) => ({
+    notification: { title, body },
+    data: { notificationId },
+    android: {
+        priority: 'high',
+        notification: { sound: 'default' }
+    },
+    apns: {
+        payload: { aps: { sound: 'default' } }
+    },
+    webpush: {
+        notification: { icon: '/icon-192.png' },
+        fcmOptions: { link: '/' }
+    }
+});
+
+exports.sendNotificationOnCreate = onDocumentCreated('notifications/{notificationId}', async (event) => {
+        const newValue = event.data.data();
+        const title = newValue.title || 'Prefeitura de Riachão';
+        const body = newValue.message || 'Você tem uma nova notificação.';
+        const message = buildMessage(title, body, event.params.notificationId);
+
+        // Aviso geral: envia para o tópico 'all' (todos os aparelhos inscritos)
         if (newValue.userId === 'all') {
-            const message = {
-                notification: {
-                    title: newValue.title,
-                    body: newValue.message,
-                },
-                topic: 'all'
-            };
-            
             try {
-                const response = await admin.messaging().send(message);
+                const response = await admin.messaging().send({ ...message, topic: 'all' });
                 console.log('Successfully sent message:', response);
                 return response;
             } catch (error) {
-                console.log('Error sending message:', error);
+                console.error('Error sending message:', error);
                 return null;
             }
         }
-        
-        // Se for para um usuário específico, busca o token dele no Firestore
-        if (newValue.userId && newValue.userId !== 'all') {
-             try {
-                const userDoc = await admin.firestore().collection('users').doc(newValue.userId).get();
-                if (userDoc.exists && userDoc.data().fcmToken) {
-                    const token = userDoc.data().fcmToken;
-                    const message = {
-                        notification: {
-                            title: newValue.title,
-                            body: newValue.message,
-                        },
-                        token: token
-                    };
-                    const response = await admin.messaging().send(message);
-                    console.log('Successfully sent message to user:', response);
-                    return response;
-                }
-             } catch (error) {
-                 console.log('Error sending message to user:', error);
-             }
-        }
 
-        return null;
-    });
+        // Aviso para um usuário específico: usa o token salvo no perfil dele
+        if (!newValue.userId) return null;
+        const userRef = admin.firestore().collection('users').doc(newValue.userId);
+        const userDoc = await userRef.get();
+        const token = userDoc.exists ? userDoc.data().fcmToken : null;
+        if (!token) return null;
 
-exports.subscribeToTopic = functions.firestore
-    .document('users/{userId}')
-    .onWrite(async (change, context) => {
-        const newData = change.after.exists ? change.after.data() : null;
-        const oldData = change.before.exists ? change.before.data() : null;
-
-        // Se não houver novo token, não faz nada
-        if (!newData || !newData.fcmToken) return null;
-
-        // Se o token for o mesmo, não faz nada
-        if (oldData && oldData.fcmToken === newData.fcmToken) return null;
-
-        // Inscreve o novo token no tópico 'all'
         try {
-            const response = await admin.messaging().subscribeToTopic(newData.fcmToken, 'all');
-            console.log('Successfully subscribed to topic:', response);
+            const response = await admin.messaging().send({ ...message, token });
+            console.log('Successfully sent message to user:', response);
             return response;
         } catch (error) {
-            console.log('Error subscribing to topic:', error);
+            console.error('Error sending message to user:', error);
+            // Token inválido: remove para não tentar de novo
+            if (INVALID_TOKEN_ERRORS.includes(error.code)) {
+                await userRef.update({ fcmToken: admin.firestore.FieldValue.delete() });
+            }
             return null;
         }
+    });
+
+exports.subscribeToTopic = onDocumentWritten('users/{userId}', async (event) => {
+        const { before, after } = event.data;
+        const newToken = after.exists ? after.data().fcmToken : null;
+        const oldToken = before.exists ? before.data().fcmToken : null;
+
+        // Se o token não mudou, não faz nada
+        if (newToken === oldToken) return null;
+
+        try {
+            // Aparelho antigo deixa de receber os avisos gerais
+            if (oldToken) await admin.messaging().unsubscribeFromTopic(oldToken, 'all');
+            // Inscreve o novo token no tópico 'all'
+            if (newToken) {
+                const response = await admin.messaging().subscribeToTopic(newToken, 'all');
+                console.log('Successfully subscribed to topic:', response);
+                return response;
+            }
+        } catch (error) {
+            console.error('Error updating topic subscription:', error);
+        }
+        return null;
     });

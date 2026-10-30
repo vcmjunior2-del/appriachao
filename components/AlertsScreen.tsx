@@ -1,20 +1,37 @@
-
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, writeBatch, doc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationItem } from '../types';
+import { getPushStatus, registerPush, PushStatus } from '../pushNotifications';
 
 interface AlertsScreenProps {
   onBack: () => void;
 }
 
+let cachedNotifications: NotificationItem[] | null = null;
+
 const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
     const { currentUser } = useAuth();
-    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [notifications, setNotifications] = useState<NotificationItem[]>(cachedNotifications || []);
+    const [loading, setLoading] = useState(cachedNotifications === null);
     const [activeFilter, setActiveFilter] = useState('Todas');
     const filters = ['Todas', 'Não Lidas', 'Atualizações', 'Alertas'];
+    const [pushStatus, setPushStatus] = useState<PushStatus>('granted');
+
+    useEffect(() => {
+        getPushStatus().then(setPushStatus).catch(() => setPushStatus('unsupported'));
+    }, []);
+
+    // Pedido de permissão feito a partir de um toque (exigência do iPhone)
+    const handleEnablePush = async () => {
+        if (!currentUser) return;
+        try {
+            setPushStatus(await registerPush(currentUser.uid, true));
+        } catch (e) {
+            console.error("Erro ao ativar notificações:", e);
+        }
+    };
 
     useEffect(() => {
         if (!currentUser) return;
@@ -42,6 +59,7 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
             });
 
             setNotifications(data);
+            cachedNotifications = data;
             setLoading(false);
         };
 
@@ -199,6 +217,26 @@ const AlertsScreen: React.FC<AlertsScreenProps> = ({ onBack }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Ativar notificações push */}
+            {(pushStatus === 'default' || pushStatus === 'denied') && (
+                <div className="mx-4 mt-4 p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3">
+                    <span className="material-symbols-outlined text-primary text-2xl">notifications_active</span>
+                    <p className="flex-1 text-sm text-slate-700 dark:text-slate-200">
+                        {pushStatus === 'default'
+                            ? 'Receba avisos da prefeitura mesmo com o app fechado.'
+                            : 'Notificações bloqueadas. Libere nas configurações do aparelho para receber avisos.'}
+                    </p>
+                    {pushStatus === 'default' && (
+                        <button
+                            onClick={handleEnablePush}
+                            className="shrink-0 bg-primary hover:bg-blue-700 text-white text-xs font-bold px-4 h-9 rounded-full transition-colors"
+                        >
+                            Ativar
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Filter Chips */}
             <div className="flex gap-3 px-4 py-4 overflow-x-auto no-scrollbar bg-white dark:bg-slate-900 border-b border-slate-50 dark:border-slate-800/50">

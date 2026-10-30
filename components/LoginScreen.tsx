@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
 import { auth, db, googleProvider } from '../firebaseConfig';
 import { motion } from 'framer-motion';
 
@@ -38,21 +39,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
     setLoading(true);
 
     const emailInput = email.trim();
-
-    // --- DEMO BYPASS ---
-    if (emailInput === 'demo@riachao.gov.br' && password === '123456') {
-        try {
-            // Autenticar anonimamente para garantir que currentUser exista no app
-            await auth.signInAnonymously();
-            onLoginSuccess();
-        } catch (e) {
-            console.error(e);
-            setError('Erro ao iniciar modo demonstração.');
-        } finally {
-            setLoading(false);
-        }
-        return;
-    }
 
     try {
       await auth.signInWithEmailAndPassword(emailInput, password);
@@ -165,7 +151,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
         )}
 
         <div className="flex flex-col gap-4">
-            {/* Google Login */}
+            {/* Google Login: só no navegador. No app instalado o popup não abre, e a App Store
+                exigiria também "Entrar com Apple" se houvesse login com Google */}
+            {!Capacitor.isNativePlatform() && (<>
             <motion.button 
                 variants={itemVariants}
                 type="button"
@@ -182,6 +170,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
                 <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-bold">Ou via E-mail</span>
                 <div className="flex-grow border-t border-gray-300 dark:border-gray-700"></div>
             </motion.div>
+            </>)}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <motion.div variants={itemVariants}>
@@ -207,10 +196,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onBack, onRegister, onLoginSu
                     />
                 </motion.div>
                 
-                <motion.div variants={itemVariants} className="flex justify-between items-center">
-                    <button type="button" onClick={() => { setEmail('demo@riachao.gov.br'); setPassword('123456'); }} className="text-xs font-medium text-gray-400 hover:text-gray-600 uppercase tracking-wide">
-                        Usar Demo
-                    </button>
+                <motion.div variants={itemVariants} className="flex justify-end items-center">
                     <button type="button" className="text-sm font-semibold text-primary hover:text-blue-700 dark:hover:text-blue-400">
                         Esqueceu a senha?
                     </button>

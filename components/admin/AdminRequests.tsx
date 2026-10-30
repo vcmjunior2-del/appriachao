@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import { db, isAdminUser } from '../../firebaseConfig';
 import { RequestItem, Secretariat } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -65,7 +65,7 @@ const AdminRequests: React.FC<AdminRequestsProps> = ({ initialView }) => {
     // --- Data Fetching & Real-time Listeners ---
     useEffect(() => {
         // Guard: Strictly allow only the Admin Email to fetch all requests.
-        if (!currentUser || (currentUser.email !== 'administracao@riachaodojacuipe.ba.gov.br' && !currentUser.isAnonymous)) return;
+        if (!isAdminUser(currentUser)) return;
 
         const unsubReqs = onSnapshot(
             query(collection(db, "requests"), orderBy('date', 'desc')), 
